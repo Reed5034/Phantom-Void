@@ -3,13 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Block Breaker</title>
+  <meta name="theme-color" content="#071116">
+  <title>Neon Breaker</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
-    <canvas id="game" width="600" height="450" aria-label="Block Breaker game"></canvas>
-    <p>Move the paddle with the left and right arrow keys, or A and D.</p>
+  <main class="game-layout">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">N</span>
+        <div>
+          <p class="eyebrow">ARCADE DIVISION / 2089</p>
+          <h1>NEON <span>BREAKER</span></h1>
+        </div>
+      </div>
+      <div class="system-status"><span class="status-light"></span> SYSTEM ONLINE</div>
+    </header>
+
+    <section class="game-panel" aria-label="Neon Breaker arcade game">
+      <div class="hud">
+        <div class="hud-item"><span class="hud-label">SCORE</span><strong id="score">0000</strong></div>
+        <div class="hud-item hud-center"><span class="hud-label">ACTIVE BOOST</span><strong id="effect-status">NO ACTIVE BOOST</strong></div>
+        <div class="hud-item hud-right"><span class="hud-label">LIVES</span><strong><span id="lives">3</span><span class="life-mark" aria-hidden="true"> ◆</span></strong></div>
+      </div>
+
+      <div class="arena">
+        <canvas id="game" width="600" height="450" aria-label="Neon Breaker game"></canvas>
+        <section id="screen" class="screen is-visible" aria-live="polite">
+          <div class="screen-panel">
+            <p id="screen-kicker" class="screen-kicker">ARCADE SYSTEM / 01</p>
+            <h2 id="screen-title">NEON BREAKER</h2>
+            <p id="screen-message" class="screen-message">Choose a look, then launch your run.</p>
+            <div class="skin-label">BALL / PADDLE COLORWAY</div>
+            <div class="skin-picker" role="group" aria-label="Choose a skin">
+              <button class="skin-option" type="button" data-skin="ion" aria-label="Ion cyan skin" aria-pressed="true"><span class="skin-chip skin-ion"></span><span>ION</span></button>
+              <button class="skin-option" type="button" data-skin="flare" aria-label="Flare orange skin" aria-pressed="false"><span class="skin-chip skin-flare"></span><span>FLARE</span></button>
+              <button class="skin-option" type="button" data-skin="pulse" aria-label="Pulse green skin" aria-pressed="false"><span class="skin-chip skin-pulse"></span><span>PULSE</span></button>
+            </div>
+            <button id="primary-action" class="primary-action" type="button">START GAME <span aria-hidden="true">↗</span></button>
+            <button id="menu-action" class="text-action" type="button" hidden>RETURN TO TITLE</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="controls-row">
+        <div class="control-hint"><span class="keycap">←</span><span class="keycap">→</span><span>MOVE</span><span class="hint-divider">·</span><span class="keycap">P</span><span>PAUSE</span></div>
+        <div class="powerup-hint"><span class="powerup-dot wide-dot">W</span> WIDE <span class="powerup-dot slow-dot">S</span> SLOW <span class="powerup-dot life-dot">+</span> EXTRA LIFE</div>
+        <div class="touch-controls" aria-label="Touch paddle controls">
+          <button id="move-left" type="button" aria-label="Move paddle left">←</button>
+          <button id="move-right" type="button" aria-label="Move paddle right">→</button>
+        </div>
+      </div>
+    </section>
+    <footer><span>BREAK THE GRID. KEEP THE SIGNAL.</span><span>ARROWS / A D TO MOVE · ESC TO PAUSE</span></footer>
   </main>
 
   <!-- The order matters: game.js goes first because the other files use its settings. -->
