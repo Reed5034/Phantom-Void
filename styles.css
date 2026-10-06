@@ -295,6 +295,7 @@ canvas {
 .skin-prism { color: #b2c9ff; background: #b2c9ff; }
 .skin-nova { color: #ff9bb4; background: #ff9bb4; }
 .skin-zenith { color: #f1f4ff; background: #f1f4ff; }
+.skin-admin { color: #ff6be5; background: #ff6be5; }
 
 .skin-name,
 .skin-unlock-label {
@@ -335,6 +336,45 @@ canvas {
   transition: background 140ms ease, transform 140ms ease;
 }
 
+.admin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 107, 229, 0.3);
+  background: rgba(255, 107, 229, 0.045);
+}
+
+.admin-bar[hidden] {
+  display: none;
+}
+
+.admin-label {
+  color: #ff9beb;
+  font: 8px "Orbitron", sans-serif;
+}
+
+#unlock-all {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 107, 229, 0.56);
+  background: transparent;
+  color: #ff9beb;
+  cursor: pointer;
+  font: 700 8px "Orbitron", sans-serif;
+}
+
+#unlock-all:hover:not(:disabled) {
+  background: rgba(255, 107, 229, 0.14);
+}
+
+#unlock-all:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .primary-action:hover {
   background: #a1fff4;
   transform: translateY(-1px);
@@ -343,6 +383,7 @@ canvas {
 .primary-action:focus-visible,
 .skin-option:focus-visible,
 .text-action:focus-visible,
+#unlock-all:focus-visible,
 .touch-controls button:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 3px;

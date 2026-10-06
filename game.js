@@ -8,7 +8,9 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const MAX_LEVELS = 50;
 const BALL_SPEED = 4;
+const MAX_BALL_SPEED = BALL_SPEED * 3;
 const PADDLE_WIDTH = 92;
+const MAX_PADDLE_SPEED = 12;
 const PADDLE_WIDE_FACTOR = 1.55;
 const POWERUP_DURATION = 9000;
 const SAVE_KEY = "neonBreakerProgressV1";
@@ -25,6 +27,8 @@ const ui = {
   screenMessage: document.getElementById("screen-message"),
   skinPerk: document.getElementById("skin-perk"),
   skinPicker: document.getElementById("skin-picker"),
+  adminBar: document.getElementById("admin-bar"),
+  unlockAll: document.getElementById("unlock-all"),
   primaryAction: document.getElementById("primary-action"),
   menuAction: document.getElementById("menu-action")
 };
@@ -36,7 +40,8 @@ const skins = {
   solar: { name: "SOLAR", ball: "#ffdf75", paddle: "#ffad4c", glow: "#ffdf75", unlockLevel: 17, wideFactor: 1.2, perk: "PERMANENT +20% PADDLE WIDTH. WIDE DROPS MULTIPLY IT." },
   prism: { name: "PRISM", ball: "#b2c9ff", paddle: "#7ea1e8", glow: "#b2c9ff", unlockLevel: 25, speedFactor: 0.84, perk: "PERMANENT 16% SLOWER BALL. SLOW DROPS STACK." },
   nova: { name: "NOVA", ball: "#ff9bb4", paddle: "#f26d8d", glow: "#ff9bb4", unlockLevel: 33, startingLives: 2, perk: "PERMANENT +2 STARTING LIVES. LIFE DROPS STACK." },
-  zenith: { name: "ZENITH", ball: "#f1f4ff", paddle: "#bbc8d2", glow: "#f1f4ff", unlockLevel: 50, wideFactor: 1.35, scoreFactor: 1.15, perk: "PERMANENT +35% WIDTH AND +15% SCORE. WIDE DROPS STACK." }
+  zenith: { name: "ZENITH", ball: "#f1f4ff", paddle: "#bbc8d2", glow: "#f1f4ff", unlockLevel: 50, wideFactor: 1.35, scoreFactor: 1.15, perk: "PERMANENT +35% WIDTH AND +15% SCORE. WIDE DROPS STACK." },
+  admin: { name: "ADMIN", ball: "#ff6be5", paddle: "#f14bd0", glow: "#ff6be5", unlockLevel: 1, requiresAdmin: true, maxWidth: true, speedFactor: MAX_BALL_SPEED / BALL_SPEED, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 97, maxLives: 100, perk: "FULL-WIDTH PADDLE. MAX BALL AND PADDLE SPEED. 100 LIVES." }
 };
 let selectedSkin = "ion";
 let gameState = "menu";
@@ -44,6 +49,7 @@ let score = 0;
 let lives = 3;
 let currentLevel = 1;
 let highestLevel = 1;
+let adminUnlocked = false;
 let savedProgress = null;
 let bricks = [];
 let powerUps = [];
@@ -81,6 +87,7 @@ function showScreen(type) {
   gameState = type;
   ui.screen.classList.add("is-visible");
   ui.menuAction.hidden = type !== "paused" && !(type === "menu" && savedProgress);
+  ui.adminBar.hidden = type !== "menu";
 
   const screens = {
     menu: ["ARCADE SYSTEM / 01", "NEON BREAKER", savedProgress ? `Saved run ready: level ${savedProgress.level} of ${MAX_LEVELS}.` : `50 levels. Reach milestones to unlock new colorways.`, savedProgress ? `RESUME LEVEL ${String(savedProgress.level).padStart(2, "0")}` : "START LEVEL 01"],
@@ -109,7 +116,7 @@ function startNewGame() {
   clearSavedRun();
   score = 0;
   currentLevel = 1;
-  lives = Math.min(3 + (skins[selectedSkin].startingLives || 0), 5);
+  lives = Math.min(3 + (skins[selectedSkin].startingLives || 0), skins[selectedSkin].maxLives || 5);
   beginLevel(currentLevel);
   updateSkinPicker();
   updateHud();
@@ -117,22 +124,27 @@ function startNewGame() {
 }
 
 function setSkin(name) {
-  if (!skins[name] || highestLevel < skins[name].unlockLevel) return;
+  if (!isSkinUnlocked(name)) return;
   const oldSpeedFactor = skins[selectedSkin].speedFactor || 1;
   const oldWidth = paddle.width;
   selectedSkin = name;
+  lives = skins[selectedSkin].maxLives
+    ? skins[selectedSkin].maxLives
+    : Math.min(lives, 9);
   const speedRatio = (skins[selectedSkin].speedFactor || 1) / oldSpeedFactor;
   ball.vx *= speedRatio;
   ball.vy *= speedRatio;
+  paddle.speed = skins[selectedSkin].paddleSpeed || 6;
   resizePaddle(oldWidth);
   ui.skinPerk.textContent = skins[selectedSkin].perk;
   document.querySelectorAll("[data-skin]").forEach((button) => {
     const isSelected = button.dataset.skin === name;
     button.setAttribute("aria-pressed", String(isSelected));
   });
-  updateEffectStatus();
+  updateHud();
   if (savedProgress) {
     savedProgress.skin = selectedSkin;
+    savedProgress.lives = lives;
     savedProgress.ball = { ...ball };
     savedProgress.paddleX = paddle.x;
     savedProgress.wideRemaining = Math.max(0, wideUntil - performance.now());
@@ -144,7 +156,7 @@ function setSkin(name) {
 function onBrickDestroyed(brick) {
   score += Math.round(100 * (skins[selectedSkin].scoreFactor || 1));
   updateHud();
-  if (Math.random() < (selectedSkin === "zenith" ? 0.26 : 0.22)) {
+  if (selectedSkin !== "admin" && Math.random() < (selectedSkin === "zenith" ? 0.26 : 0.22)) {
     const types = ["wide", "slow", "life"];
     powerUps.push({
       x: brick.x + brick.width / 2 - 10,
@@ -168,7 +180,7 @@ function applyPowerUp(type) {
     }
     slowUntil = now + POWERUP_DURATION;
   } else if (type === "life") {
-    lives = Math.min(lives + 1, 9);
+    lives = Math.min(lives + 1, skins[selectedSkin].maxLives || 9);
     updateHud();
   }
 }
@@ -203,9 +215,12 @@ function updateEffectStatus(now = performance.now()) {
   if (!ui.status) return;
   const effects = [];
   const skin = skins[selectedSkin];
-  if (skin.wideFactor) effects.push(`PASSIVE WIDE +${Math.round((skin.wideFactor - 1) * 100)}%`);
-  if (skin.speedFactor) effects.push(`PASSIVE SLOW ${Math.round((1 - skin.speedFactor) * 100)}%`);
-  if (skin.startingLives) effects.push(`PASSIVE +${skin.startingLives} LIFE${skin.startingLives > 1 ? "S" : ""}`);
+  if (skin.maxWidth) effects.push("MAX PADDLE WIDTH");
+  else if (skin.wideFactor) effects.push(`PASSIVE WIDE +${Math.round((skin.wideFactor - 1) * 100)}%`);
+  if (skin.speedFactor >= MAX_BALL_SPEED / BALL_SPEED) effects.push("MAX BALL SPEED");
+  else if (skin.speedFactor) effects.push(`PASSIVE SLOW ${Math.round((1 - skin.speedFactor) * 100)}%`);
+  if (skin.maxLives) effects.push(`${skin.maxLives} STARTING LIVES`);
+  else if (skin.startingLives) effects.push(`PASSIVE +${skin.startingLives} LIFE${skin.startingLives > 1 ? "S" : ""}`);
   if (wideUntil > now) effects.push(`WIDE ${Math.ceil((wideUntil - now) / 1000)}S`);
   if (slowUntil > now) effects.push(`SLOW ${Math.ceil((slowUntil - now) / 1000)}S`);
   ui.status.textContent = effects.length ? effects.join(" · ") : "NO ACTIVE BOOST";
@@ -214,7 +229,9 @@ function updateEffectStatus(now = performance.now()) {
 function resizePaddle(previousWidth = paddle.width) {
   const center = paddle.x + previousWidth / 2;
   const widthFactor = skins[selectedSkin].wideFactor || 1;
-  paddle.width = PADDLE_WIDTH * widthFactor * (wideUntil > performance.now() ? PADDLE_WIDE_FACTOR : 1);
+  paddle.width = skins[selectedSkin].maxWidth
+    ? WIDTH
+    : Math.min(WIDTH, PADDLE_WIDTH * widthFactor * (wideUntil > performance.now() ? PADDLE_WIDE_FACTOR : 1));
   paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, center - paddle.width / 2));
 }
 
@@ -246,18 +263,37 @@ function completeLevel() {
 function updateSkinPicker() {
   document.querySelectorAll("[data-skin]").forEach((button) => {
     const skin = skins[button.dataset.skin];
-    const locked = highestLevel < skin.unlockLevel;
+    const locked = !isSkinUnlocked(button.dataset.skin);
     button.disabled = locked;
     button.setAttribute("aria-pressed", String(button.dataset.skin === selectedSkin));
-    button.setAttribute("aria-label", locked ? `${skin.name}, unlock at level ${skin.unlockLevel}` : `${skin.name} skin. ${skin.perk}`);
-    button.title = locked ? `Unlock at level ${skin.unlockLevel}` : skin.perk;
-    button.querySelector(".skin-unlock-label").textContent = locked ? `LVL ${String(skin.unlockLevel).padStart(2, "0")}` : "UNLOCKED";
+    const adminLocked = skin.requiresAdmin && !adminUnlocked;
+    button.setAttribute("aria-label", locked ? `${skin.name}, ${adminLocked ? "unlock with admin override" : `unlock at level ${skin.unlockLevel}`}` : `${skin.name} skin. ${skin.perk}`);
+    button.title = locked ? (adminLocked ? "Unlock with admin override" : `Unlock at level ${skin.unlockLevel}`) : skin.perk;
+    button.querySelector(".skin-unlock-label").textContent = locked ? (adminLocked ? "LOCKED" : `LVL ${String(skin.unlockLevel).padStart(2, "0")}`) : "UNLOCKED";
   });
+}
+
+function isSkinUnlocked(name) {
+  const skin = skins[name];
+  return Boolean(skin && highestLevel >= skin.unlockLevel && (!skin.requiresAdmin || adminUnlocked));
+}
+
+function updateAdminControls() {
+  ui.unlockAll.disabled = adminUnlocked;
+  ui.unlockAll.textContent = adminUnlocked ? "ALL CONTENT UNLOCKED" : "UNLOCK ALL";
+}
+
+function unlockAll() {
+  highestLevel = MAX_LEVELS;
+  adminUnlocked = true;
+  updateSkinPicker();
+  updateAdminControls();
+  saveProfile();
 }
 
 function saveProfile(run = savedProgress) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, highestLevel, run }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, highestLevel, adminUnlocked, run }));
   } catch (error) {
     ui.status.textContent = "SAVE UNAVAILABLE";
   }
@@ -286,6 +322,7 @@ function loadProfile() {
     const profile = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (!profile || profile.version !== 1) return;
     highestLevel = Math.max(1, Math.min(MAX_LEVELS, Number(profile.highestLevel) || 1));
+    adminUnlocked = profile.adminUnlocked === true;
     const run = profile.run;
     if (
       run && Number.isInteger(run.level) && run.level >= 1 && run.level <= MAX_LEVELS &&
@@ -304,14 +341,17 @@ function resumeSavedGame() {
   const save = savedProgress;
   currentLevel = save.level;
   score = Math.max(0, save.score);
-  lives = Math.max(1, Math.min(9, save.lives));
-  selectedSkin = skins[save.skin] && highestLevel >= skins[save.skin].unlockLevel ? save.skin : "ion";
+  selectedSkin = isSkinUnlocked(save.skin) ? save.skin : "ion";
+  lives = skins[selectedSkin].maxLives || Math.max(1, Math.min(9, save.lives));
   bricks = save.bricks;
   powerUps = Array.isArray(save.powerUps) ? save.powerUps : [];
   Object.assign(ball, save.ball);
   wideUntil = performance.now() + Math.max(0, Number(save.wideRemaining) || 0);
   slowUntil = performance.now() + Math.max(0, Number(save.slowRemaining) || 0);
-  paddle.width = PADDLE_WIDTH * (skins[selectedSkin].wideFactor || 1) * (wideUntil > performance.now() ? PADDLE_WIDE_FACTOR : 1);
+  paddle.width = skins[selectedSkin].maxWidth
+    ? WIDTH
+    : Math.min(WIDTH, PADDLE_WIDTH * (skins[selectedSkin].wideFactor || 1) * (wideUntil > performance.now() ? PADDLE_WIDE_FACTOR : 1));
+  paddle.speed = skins[selectedSkin].paddleSpeed || 6;
   paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, save.paddleX));
   ui.skinPerk.textContent = skins[selectedSkin].perk;
   updateSkinPicker();
@@ -361,6 +401,7 @@ ui.primaryAction.addEventListener("click", () => {
   else if (gameState === "menu" && savedProgress) resumeSavedGame();
   else startNewGame();
 });
+ui.unlockAll.addEventListener("click", unlockAll);
 ui.menuAction.addEventListener("click", () => {
   if (gameState === "menu") startNewGame();
   else showScreen("menu");
@@ -496,6 +537,7 @@ function start() {
   setSkin(selectedSkin);
   ui.skinPerk.textContent = skins[selectedSkin].perk;
   updateSkinPicker();
+  updateAdminControls();
   showScreen("menu");
   lastTime = performance.now();
   requestAnimationFrame(frame);
