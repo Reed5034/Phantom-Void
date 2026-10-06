@@ -24,6 +24,7 @@ const ui = {
   screenTitle: document.getElementById("screen-title"),
   screenMessage: document.getElementById("screen-message"),
   skinPerk: document.getElementById("skin-perk"),
+  skinPicker: document.getElementById("skin-picker"),
   primaryAction: document.getElementById("primary-action"),
   menuAction: document.getElementById("menu-action")
 };
@@ -63,8 +64,9 @@ const keys = {};
 function resetBall() {
   ball.x = WIDTH / 2 - ball.width / 2;
   ball.y = HEIGHT / 2 - ball.height / 2;
-  ball.vx = BALL_SPEED;
-  ball.vy = BALL_SPEED;
+  const speed = BALL_SPEED * (skins[selectedSkin].speedFactor || 1) * (slowUntil > performance.now() ? 0.72 : 1);
+  ball.vx = speed;
+  ball.vy = speed;
 }
 
 function updateHud() {
@@ -90,11 +92,10 @@ function showScreen(type) {
   ui.screenKicker.textContent = kicker;
   ui.screenTitle.textContent = title;
   ui.screenMessage.textContent = message;
-  ui.primaryAction.textContent = action;
-  ui.primaryAction.querySelector("span").textContent = "↗";
+  ui.primaryAction.firstChild.textContent = `${action} `;
   if (type === "menu" && savedProgress) ui.menuAction.textContent = "START A NEW RUN";
   else ui.menuAction.textContent = "RETURN TO TITLE";
-  ui.skinPicker.hidden = type === "paused" || type === "gameover" || type === "won";
+  ui.skinPicker.hidden = type === "gameover" || type === "won";
 }
 
 function hideScreen() {
@@ -130,6 +131,13 @@ function setSkin(name) {
     button.setAttribute("aria-pressed", String(isSelected));
   });
   updateEffectStatus();
+  if (savedProgress) {
+    savedProgress.skin = selectedSkin;
+    savedProgress.ball = { ...ball };
+    savedProgress.paddleX = paddle.x;
+    savedProgress.wideRemaining = Math.max(0, wideUntil - performance.now());
+    savedProgress.slowRemaining = Math.max(0, slowUntil - performance.now());
+  }
   saveProfile();
 }
 
@@ -222,6 +230,7 @@ function beginLevel(level) {
   resetBall();
   updateHud();
   updateSkinPicker();
+  saveProfile();
 }
 
 function completeLevel() {
@@ -262,6 +271,7 @@ function saveProgress() {
     score,
     lives,
     bricks: bricks.map((brick) => ({ ...brick })),
+    powerUps: powerUps.map((powerUp) => ({ ...powerUp })),
     ball: { ...ball },
     paddleX: paddle.x,
     skin: selectedSkin,
@@ -294,10 +304,10 @@ function resumeSavedGame() {
   const save = savedProgress;
   currentLevel = save.level;
   score = Math.max(0, save.score);
-  lives = Math.max(1, Math.min(5, save.lives));
+  lives = Math.max(1, Math.min(9, save.lives));
   selectedSkin = skins[save.skin] && highestLevel >= skins[save.skin].unlockLevel ? save.skin : "ion";
   bricks = save.bricks;
-  powerUps = [];
+  powerUps = Array.isArray(save.powerUps) ? save.powerUps : [];
   Object.assign(ball, save.ball);
   wideUntil = performance.now() + Math.max(0, Number(save.wideRemaining) || 0);
   slowUntil = performance.now() + Math.max(0, Number(save.slowRemaining) || 0);
@@ -348,9 +358,13 @@ for (const [id, direction] of [["move-left", "arrowleft"], ["move-right", "arrow
 
 ui.primaryAction.addEventListener("click", () => {
   if (gameState === "paused") hideScreen();
+  else if (gameState === "menu" && savedProgress) resumeSavedGame();
   else startNewGame();
 });
-ui.menuAction.addEventListener("click", () => showScreen("menu"));
+ui.menuAction.addEventListener("click", () => {
+  if (gameState === "menu") startNewGame();
+  else showScreen("menu");
+});
 
 function update() {
   if (gameState !== "playing") return;
@@ -364,10 +378,19 @@ function update() {
   if (ball.y > HEIGHT) {
     lives -= 1;
     updateHud();
-    if (lives <= 0) showScreen("gameover");
-    else resetBall();
+    if (lives <= 0) {
+      clearSavedRun();
+      showScreen("gameover");
+    } else {
+      resetBall();
+      saveProgress();
+    }
   }
-  if (gameState === "playing" && bricks.length === 0) showScreen("won");
+  if (gameState === "playing" && bricks.length === 0) completeLevel();
+  if (gameState === "playing" && performance.now() - lastSaveAt >= SAVE_INTERVAL) {
+    saveProgress();
+    lastSaveAt = performance.now();
+  }
 }
 
 function movePaddle() {
@@ -468,11 +491,19 @@ function frame(now) {
 }
 
 function start() {
+  loadProfile();
   updateHud();
   setSkin(selectedSkin);
+  ui.skinPerk.textContent = skins[selectedSkin].perk;
+  updateSkinPicker();
   showScreen("menu");
   lastTime = performance.now();
   requestAnimationFrame(frame);
 }
+
+window.addEventListener("beforeunload", saveProgress);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveProgress();
+});
 
 window.addEventListener("load", start);

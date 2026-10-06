@@ -23,6 +23,7 @@
     <section class="game-panel" aria-label="Neon Breaker arcade game">
       <div class="hud">
         <div class="hud-item"><span class="hud-label">SCORE</span><strong id="score">0000</strong></div>
+        <div class="hud-item"><span class="hud-label">STAGE</span><strong id="level">01 / 50</strong></div>
         <div class="hud-item hud-center"><span class="hud-label">ACTIVE BOOST</span><strong id="effect-status">NO ACTIVE BOOST</strong></div>
         <div class="hud-item hud-right"><span class="hud-label">LIVES</span><strong><span id="lives">3</span><span class="life-mark" aria-hidden="true"> ◆</span></strong></div>
       </div>
@@ -34,14 +35,21 @@
             <p id="screen-kicker" class="screen-kicker">ARCADE SYSTEM / 01</p>
             <h2 id="screen-title">NEON BREAKER</h2>
             <p id="screen-message" class="screen-message">Choose a look, then launch your run.</p>
-            <div class="skin-label">BALL / PADDLE COLORWAY</div>
-            <div class="skin-picker" role="group" aria-label="Choose a skin">
-              <button class="skin-option" type="button" data-skin="ion" aria-label="Ion cyan skin" aria-pressed="true"><span class="skin-chip skin-ion"></span><span>ION</span></button>
-              <button class="skin-option" type="button" data-skin="flare" aria-label="Flare orange skin" aria-pressed="false"><span class="skin-chip skin-flare"></span><span>FLARE</span></button>
-              <button class="skin-option" type="button" data-skin="pulse" aria-label="Pulse green skin" aria-pressed="false"><span class="skin-chip skin-pulse"></span><span>PULSE</span></button>
+            <div id="skin-picker">
+              <div class="skin-label">COLORWAY / PERMANENT MODIFIER</div>
+              <div class="skin-picker" role="group" aria-label="Choose an unlocked skin">
+                <button class="skin-option" type="button" data-skin="ion" aria-pressed="true"><span class="skin-chip skin-ion"></span><span class="skin-name">ION</span><small class="skin-unlock-label">UNLOCKED</small></button>
+                <button class="skin-option" type="button" data-skin="flare" aria-pressed="false"><span class="skin-chip skin-flare"></span><span class="skin-name">FLARE</span><small class="skin-unlock-label">LVL 05</small></button>
+                <button class="skin-option" type="button" data-skin="pulse" aria-pressed="false"><span class="skin-chip skin-pulse"></span><span class="skin-name">PULSE</span><small class="skin-unlock-label">LVL 10</small></button>
+                <button class="skin-option" type="button" data-skin="solar" aria-pressed="false"><span class="skin-chip skin-solar"></span><span class="skin-name">SOLAR</span><small class="skin-unlock-label">LVL 17</small></button>
+                <button class="skin-option" type="button" data-skin="prism" aria-pressed="false"><span class="skin-chip skin-prism"></span><span class="skin-name">PRISM</span><small class="skin-unlock-label">LVL 25</small></button>
+                <button class="skin-option" type="button" data-skin="nova" aria-pressed="false"><span class="skin-chip skin-nova"></span><span class="skin-name">NOVA</span><small class="skin-unlock-label">LVL 33</small></button>
+                <button class="skin-option" type="button" data-skin="zenith" aria-pressed="false"><span class="skin-chip skin-zenith"></span><span class="skin-name">ZENITH</span><small class="skin-unlock-label">LVL 50</small></button>
+              </div>
+              <p id="skin-perk" class="skin-perk">PERMANENT +12% PADDLE WIDTH. WIDE DROPS MULTIPLY IT.</p>
             </div>
             <button id="primary-action" class="primary-action" type="button">START GAME <span aria-hidden="true">↗</span></button>
-            <button id="menu-action" class="text-action" type="button" hidden>RETURN TO TITLE</button>
+            <button id="menu-action" class="text-action" type="button" hidden>START A NEW RUN</button>
           </div>
         </section>
       </div>

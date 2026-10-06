@@ -76,8 +76,11 @@ function bounceOffBricks() {
       }
     }
 
-    bricks.splice(index, 1);
-    onBrickDestroyed(brick);
+    brick.hitPoints -= 1;
+    if (brick.hitPoints <= 0) {
+      bricks.splice(index, 1);
+      onBrickDestroyed(brick);
+    }
     break;  // bounce off one brick per update, then stop looking
   }
 }

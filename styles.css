@@ -133,7 +133,7 @@ h1 span {
 .hud-item {
   display: grid;
   gap: 2px;
-  min-width: 100px;
+  min-width: 72px;
   text-align: left;
 }
 
@@ -157,7 +157,9 @@ h1 span {
 
 #effect-status {
   color: var(--cyan);
-  font-size: 11px;
+  max-width: 220px;
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .life-mark {
@@ -237,22 +239,26 @@ canvas {
 
 .skin-picker {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   margin-bottom: 18px;
 }
 
 .skin-option {
-  display: flex;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 39px;
+  column-gap: 5px;
+  min-width: 0;
+  min-height: 47px;
+  padding: 6px;
   border: 1px solid rgba(151, 208, 207, 0.2);
   background: rgba(255, 255, 255, 0.025);
   color: #a9bab6;
   cursor: pointer;
-  font: 600 9px "Orbitron", sans-serif;
+  text-align: left;
+  font: 600 8px "Orbitron", sans-serif;
   transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
@@ -263,16 +269,56 @@ canvas {
   color: var(--text);
 }
 
+.skin-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.skin-option:disabled:hover {
+  border-color: rgba(151, 208, 207, 0.2);
+  background: rgba(255, 255, 255, 0.025);
+  color: #a9bab6;
+}
+
 .skin-chip {
   width: 11px;
   height: 11px;
   border-radius: 50%;
   box-shadow: 0 0 10px currentColor;
+  grid-row: 1 / 3;
 }
 
 .skin-ion { color: var(--cyan); background: var(--cyan); }
 .skin-flare { color: var(--coral); background: var(--coral); }
 .skin-pulse { color: var(--lime); background: var(--lime); }
+.skin-solar { color: #ffdf75; background: #ffdf75; }
+.skin-prism { color: #b2c9ff; background: #b2c9ff; }
+.skin-nova { color: #ff9bb4; background: #ff9bb4; }
+.skin-zenith { color: #f1f4ff; background: #f1f4ff; }
+
+.skin-name,
+.skin-unlock-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skin-unlock-label {
+  grid-column: 2;
+  color: var(--muted);
+  font: 6px "Orbitron", sans-serif;
+}
+
+.skin-option[aria-pressed="true"] .skin-unlock-label {
+  color: var(--cyan);
+}
+
+.skin-perk {
+  min-height: 23px;
+  margin: -9px 0 12px;
+  color: #9bb2ad;
+  font: 8px/1.5 "Orbitron", sans-serif;
+}
 
 .primary-action {
   display: flex;
@@ -399,15 +445,20 @@ footer {
   }
 
   .topbar { margin-bottom: 16px; }
+  .screen { align-items: start; overflow-y: auto; padding: 10px; }
+  .screen-panel { margin: auto; padding: 15px; }
+  .screen-message { margin: 6px 0 12px; }
+  .skin-picker { margin-bottom: 12px; }
+  .skin-perk { min-height: 20px; margin-bottom: 8px; }
   .brand-mark { width: 36px; height: 36px; }
   h1 { font-size: 18px; }
   .system-status { font-size: 8px; }
   .game-panel { padding-top: 10px; }
   .hud { padding: 0 9px 10px; }
-  .hud-item { min-width: 75px; }
+  .hud-item { min-width: 54px; }
   .hud-label { font-size: 8px; }
-  .hud strong { font-size: 14px; }
-  #effect-status { font-size: 9px; }
+  .hud strong { font-size: 12px; }
+  #effect-status { max-width: 130px; font-size: 7px; }
   .controls-row { padding: 9px 9px 0; }
   .powerup-hint { display: none; }
   .touch-controls { display: flex; }
@@ -416,7 +467,10 @@ footer {
 
 @media (max-width: 400px) {
   .system-status { display: none; }
-  .screen-panel { padding: 20px 17px; }
+  .screen-panel { padding: 16px 13px; }
+  .skin-picker { gap: 4px; }
+  .skin-option { min-height: 42px; padding: 4px; font-size: 7px; }
+  .skin-unlock-label { font-size: 5px; }
   .control-hint { gap: 4px; font-size: 7px; }
   .keycap { width: 17px; height: 17px; }
   footer span:first-child { display: none; }
