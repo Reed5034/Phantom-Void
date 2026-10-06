@@ -54,11 +54,6 @@ function bounceOffBricks() {
       continue;  // not touching this brick, check the next one
     }
 
-    if (selectedSkin === "admin") {
-      bricks.splice(0).forEach(onBrickDestroyed);
-      break;
-    }
-
     // How far has the ball pushed into the brick on each side?
     const overlapX = Math.min(ball.x + ball.width, brick.x + brick.width) - Math.max(ball.x, brick.x);
     const overlapY = Math.min(ball.y + ball.height, brick.y + brick.height) - Math.max(ball.y, brick.y);
@@ -81,7 +76,7 @@ function bounceOffBricks() {
       }
     }
 
-    brick.hitPoints -= 1;
+    brick.hitPoints = selectedSkin === "admin" ? 0 : brick.hitPoints - 1;
     if (brick.hitPoints <= 0) {
       bricks.splice(index, 1);
       onBrickDestroyed(brick);
