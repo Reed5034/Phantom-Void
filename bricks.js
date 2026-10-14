@@ -44,6 +44,12 @@ function drawBricks() {
     ctx.shadowColor = brick.color;
     ctx.shadowBlur = 8;
     ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#071116";
+    ctx.font = "700 11px Orbitron, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(brick.hitPoints), brick.x + brick.width / 2, brick.y + brick.height / 2);
   }
   ctx.shadowBlur = 0;
 }
