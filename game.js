@@ -41,7 +41,7 @@ const skins = {
   prism: { name: "PRISM", ball: "#b2c9ff", paddle: "#7ea1e8", glow: "#b2c9ff", unlockLevel: 25, speedFactor: 0.84, perk: "PERMANENT 16% SLOWER BALL. SLOW DROPS STACK." },
   nova: { name: "NOVA", ball: "#ff9bb4", paddle: "#f26d8d", glow: "#ff9bb4", unlockLevel: 33, startingLives: 2, perk: "PERMANENT +2 STARTING LIVES. LIFE DROPS STACK." },
   zenith: { name: "ZENITH", ball: "#f1f4ff", paddle: "#bbc8d2", glow: "#f1f4ff", unlockLevel: 50, wideFactor: 1.35, scoreFactor: 1.15, perk: "PERMANENT +35% WIDTH AND +15% SCORE. WIDE DROPS STACK." },
-  admin: { name: "ADMIN", ball: "#ff6be5", paddle: "#f14bd0", glow: "#ff6be5", unlockLevel: 1, requiresAdmin: true, maxWidth: true, speedFactor: MAX_BALL_SPEED / BALL_SPEED, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 97, maxLives: 100, perk: "FULL-WIDTH PADDLE. MAX BALL AND PADDLE SPEED. 100 LIVES." }
+  admin: { name: "ADMIN", ball: "#ff6be5", paddle: "#f14bd0", glow: "#ff6be5", unlockLevel: 1, requiresAdmin: true, maxWidth: true, speedFactor: MAX_BALL_SPEED / BALL_SPEED, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. MAX BALL AND PADDLE SPEED. 100 LIVES." }
 };
 let selectedSkin = "ion";
 let gameState = "menu";
@@ -280,10 +280,16 @@ function isSkinUnlocked(name) {
 
 function updateAdminControls() {
   ui.unlockAll.disabled = adminUnlocked;
-  ui.unlockAll.textContent = adminUnlocked ? "ALL CONTENT UNLOCKED" : "UNLOCK ALL";
+  ui.unlockAll.textContent = adminUnlocked ? "ALL SKINS UNLOCKED" : "UNLOCK ALL SKINS";
 }
 
 function unlockAll() {
+  const code = window.prompt("Enter unlock code:");
+  if (code !== "mem427Hac") {
+    if (code !== null) window.alert("Incorrect code.");
+    return;
+  }
+
   highestLevel = MAX_LEVELS;
   adminUnlocked = true;
   updateSkinPicker();
