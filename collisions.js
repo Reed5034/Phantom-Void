@@ -41,7 +41,24 @@ function bounceOffWalls() {
 function bounceOffPaddle() {
   if (boxesTouch(ball, paddle) && ball.vy > 0) {
     ball.y = paddle.y - ball.height;  // sit on top of the paddle
-    ball.vy = -ball.vy;
+    const target = bricks.reduce((nearest, brick) => {
+      const distance = Math.hypot(
+        brick.x + brick.width / 2 - (ball.x + ball.width / 2),
+        brick.y + brick.height / 2 - (ball.y + ball.height / 2)
+      );
+      return !nearest || distance < nearest.distance ? { brick, distance } : nearest;
+    }, null);
+
+    if (target) {
+      const dx = target.brick.x + target.brick.width / 2 - (ball.x + ball.width / 2);
+      const dy = target.brick.y + target.brick.height / 2 - (ball.y + ball.height / 2);
+      const distance = Math.hypot(dx, dy);
+      const speed = Math.hypot(ball.vx, ball.vy);
+      ball.vx = dx / distance * speed;
+      ball.vy = dy / distance * speed;
+    } else {
+      ball.vy = -ball.vy;
+    }
   }
 }
 
