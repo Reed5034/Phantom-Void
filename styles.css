@@ -155,6 +155,39 @@ h1 span {
   font: 600 17px/1 "Orbitron", sans-serif;
 }
 
+.game-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 17px 0;
+  color: #fff;
+}
+
+.game-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 72px;
+}
+
+.juice-stat {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.game-stat .hud-label,
+.game-stat strong {
+  color: #fff;
+}
+
+.game-stat strong {
+  font: 600 17px/1 "Orbitron", sans-serif;
+}
+
+#juice-status {
+  white-space: nowrap;
+  font-size: 9px;
+}
+
 #effect-status {
   color: var(--cyan);
   max-width: 220px;
@@ -496,9 +529,12 @@ footer {
   .system-status { font-size: 8px; }
   .game-panel { padding-top: 10px; }
   .hud { padding: 0 9px 10px; }
+  .game-stats { padding: 10px 9px 0; }
   .hud-item { min-width: 54px; }
   .hud-label { font-size: 8px; }
   .hud strong { font-size: 12px; }
+  .game-stat strong { font-size: 12px; }
+  #juice-status { font-size: 7px; }
   #effect-status { max-width: 130px; font-size: 7px; }
   .controls-row { padding: 9px 9px 0; }
   .powerup-hint { display: none; }

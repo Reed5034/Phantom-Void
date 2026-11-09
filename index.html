@@ -22,10 +22,8 @@
 
     <section class="game-panel" aria-label="Neon Breaker arcade game">
       <div class="hud">
-        <div class="hud-item"><span class="hud-label">SCORE</span><strong id="score">0000</strong></div>
         <div class="hud-item"><span class="hud-label">STAGE</span><strong id="level">01 / 50</strong></div>
         <div class="hud-item hud-center"><span class="hud-label">ACTIVE BOOST</span><strong id="effect-status">NO ACTIVE BOOST</strong></div>
-        <div class="hud-item hud-right"><span class="hud-label">LIVES</span><strong><span id="lives">3</span><span class="life-mark" aria-hidden="true"> ◆</span></strong></div>
       </div>
 
       <div class="arena">
@@ -59,8 +57,14 @@
         </section>
       </div>
 
+      <div class="game-stats" aria-label="Run statistics">
+        <div class="game-stat"><span class="hud-label">SCORE</span><strong id="score">0000</strong></div>
+        <div class="game-stat juice-stat"><span class="hud-label">JUICE</span><strong id="juice-status">CLASSIC · 000/050 · J</strong></div>
+        <div class="game-stat"><span class="hud-label">LIVES</span><strong><span id="lives">3</span><span class="life-mark" aria-hidden="true"> ◆</span></strong></div>
+      </div>
+
       <div class="controls-row">
-        <div class="control-hint"><span class="keycap">←</span><span class="keycap">→</span><span>MOVE</span><span class="hint-divider">·</span><span class="keycap">P</span><span>PAUSE</span></div>
+        <div class="control-hint"><span class="keycap">←</span><span class="keycap">→</span><span>MOVE</span><span class="hint-divider">·</span><span class="keycap">P</span><span>PAUSE</span><span class="hint-divider">·</span><span class="keycap">J</span><span>JUICE</span></div>
         <div class="powerup-hint"><span class="powerup-dot wide-dot">W</span> WIDE <span class="powerup-dot slow-dot">S</span> SLOW <span class="powerup-dot life-dot">+</span> EXTRA LIFE</div>
         <div class="touch-controls" aria-label="Touch paddle controls">
           <button id="move-left" type="button" aria-label="Move paddle left">←</button>

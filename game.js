@@ -15,6 +15,16 @@ const PADDLE_WIDE_FACTOR = 1.55;
 const POWERUP_DURATION = 9000;
 const SAVE_KEY = "neonBreakerProgressV1";
 const SAVE_INTERVAL = 5000;
+const JUICE_MILESTONE = 50;
+const juices = {
+  classic: { name: "CLASSIC", particles: 6, shake: 0, wave: false, trail: false },
+  sparks: { name: "SPARKS", particles: 14, shake: 0, wave: false, trail: false },
+  shockwave: { name: "SHOCKWAVE", particles: 18, shake: 2, wave: true, trail: false },
+  overdrive: { name: "OVERDRIVE", particles: 26, shake: 5, wave: true, trail: true }
+};
+const juiceOrder = Object.keys(juices);
+
+const GameState = { score: 0, lives: 3 };
 
 const ui = {
   score: document.getElementById("score"),
@@ -25,6 +35,7 @@ const ui = {
   screenKicker: document.getElementById("screen-kicker"),
   screenTitle: document.getElementById("screen-title"),
   screenMessage: document.getElementById("screen-message"),
+  juiceStatus: document.getElementById("juice-status"),
   skinPerk: document.getElementById("skin-perk"),
   skinPicker: document.getElementById("skin-picker"),
   adminBar: document.getElementById("admin-bar"),
@@ -45,14 +56,21 @@ const skins = {
 };
 let selectedSkin = "ion";
 let gameState = "menu";
-let score = 0;
-let lives = 3;
 let currentLevel = 1;
 let highestLevel = 1;
 let adminUnlocked = false;
 let savedProgress = null;
 let bricks = [];
 let powerUps = [];
+let totalBricksBroken = 0;
+let unlockedJuices = ["classic"];
+let selectedJuice = "classic";
+let juiceParticles = [];
+let juiceWaves = [];
+let ballTrail = [];
+let screenShake = 0;
+let juiceMessage = "";
+let juiceMessageUntil = 0;
 let wideUntil = 0;
 let slowUntil = 0;
 let lastSaveAt = 0;
@@ -76,10 +94,11 @@ function resetBall() {
 }
 
 function updateHud() {
-  ui.score.textContent = String(score).padStart(4, "0");
-  ui.lives.textContent = String(lives);
+  ui.score.textContent = String(GameState.score).padStart(4, "0");
+  ui.lives.textContent = String(GameState.lives);
   ui.level.textContent = `${String(currentLevel).padStart(2, "0")} / ${MAX_LEVELS}`;
   updateEffectStatus();
+  updateJuiceStatus();
 }
 
 function showScreen(type) {
@@ -92,8 +111,8 @@ function showScreen(type) {
   const screens = {
     menu: ["ARCADE SYSTEM / 01", "NEON BREAKER", savedProgress ? `Saved run ready: level ${savedProgress.level} of ${MAX_LEVELS}.` : `50 levels. Reach milestones to unlock new colorways.`, savedProgress ? `RESUME LEVEL ${String(savedProgress.level).padStart(2, "0")}` : "START LEVEL 01"],
     paused: ["SIGNAL HELD", "PAUSED", "Your run is on standby.", "RESUME RUN"],
-    gameover: ["RUN COMPLETE", "OUT OF LIVES", `Final score: ${score}. The grid is still waiting.`, "TRY AGAIN"],
-    won: ["GRID CLEARED", "SYSTEM DOWN", `You cleared all ${MAX_LEVELS} levels with ${score} points.`, "PLAY AGAIN"]
+    gameover: ["RUN COMPLETE", "OUT OF LIVES", `Final score: ${GameState.score}. The grid is still waiting.`, "TRY AGAIN"],
+    won: ["GRID CLEARED", "SYSTEM DOWN", `You cleared all ${MAX_LEVELS} levels with ${GameState.score} points.`, "PLAY AGAIN"]
   };
   const [kicker, title, message, action] = screens[type];
   ui.screenKicker.textContent = kicker;
@@ -114,9 +133,9 @@ function hideScreen() {
 
 function startNewGame() {
   clearSavedRun();
-  score = 0;
+  GameState.score = 0;
   currentLevel = 1;
-  lives = Math.min(3 + (skins[selectedSkin].startingLives || 0), skins[selectedSkin].maxLives || 5);
+  GameState.lives = Math.min(3 + (skins[selectedSkin].startingLives || 0), skins[selectedSkin].maxLives || 5);
   beginLevel(currentLevel);
   updateSkinPicker();
   updateHud();
@@ -128,9 +147,9 @@ function setSkin(name) {
   const oldSpeedFactor = skins[selectedSkin].speedFactor || 1;
   const oldWidth = paddle.width;
   selectedSkin = name;
-  lives = skins[selectedSkin].maxLives
+  GameState.lives = skins[selectedSkin].maxLives
     ? skins[selectedSkin].maxLives
-    : Math.min(lives, 9);
+    : Math.min(GameState.lives, 9);
   const speedRatio = (skins[selectedSkin].speedFactor || 1) / oldSpeedFactor;
   ball.vx *= speedRatio;
   ball.vy *= speedRatio;
@@ -144,7 +163,7 @@ function setSkin(name) {
   updateHud();
   if (savedProgress) {
     savedProgress.skin = selectedSkin;
-    savedProgress.lives = lives;
+    savedProgress.lives = GameState.lives;
     savedProgress.ball = { ...ball };
     savedProgress.paddleX = paddle.x;
     savedProgress.wideRemaining = Math.max(0, wideUntil - performance.now());
@@ -154,7 +173,10 @@ function setSkin(name) {
 }
 
 function onBrickDestroyed(brick) {
-  score += Math.round(100 * (skins[selectedSkin].scoreFactor || 1));
+  totalBricksBroken += 1;
+  GameState.score += Math.round(100 * (skins[selectedSkin].scoreFactor || 1));
+  spawnJuiceEffects(brick);
+  saveProfile();
   updateHud();
   if (selectedSkin !== "admin" && Math.random() < (selectedSkin === "zenith" ? 0.26 : 0.22)) {
     const types = ["wide", "slow", "life"];
@@ -166,6 +188,79 @@ function onBrickDestroyed(brick) {
       type: types[Math.floor(Math.random() * types.length)]
     });
   }
+}
+
+function spawnJuiceEffects(brick) {
+  const style = juices[selectedJuice];
+  for (let index = 0; index < style.particles; index++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3.2;
+    const lifetime = 18 + Math.random() * 20;
+    juiceParticles.push({
+      x: brick.x + brick.width / 2,
+      y: brick.y + brick.height / 2,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: lifetime,
+      maxLife: lifetime,
+      radius: 1.5 + Math.random() * 2.5,
+      color: brick.color
+    });
+  }
+  if (style.wave) {
+    juiceWaves.push({ x: brick.x + brick.width / 2, y: brick.y + brick.height / 2, radius: 3, life: 22, color: brick.color });
+  }
+  screenShake = Math.max(screenShake, style.shake);
+}
+
+function updateJuiceEffects() {
+  for (let index = juiceParticles.length - 1; index >= 0; index--) {
+    const particle = juiceParticles[index];
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+    particle.vy += 0.035;
+    particle.life -= 1;
+    if (particle.life <= 0) juiceParticles.splice(index, 1);
+  }
+  for (let index = juiceWaves.length - 1; index >= 0; index--) {
+    const wave = juiceWaves[index];
+    wave.radius += 2.6;
+    wave.life -= 1;
+    if (wave.life <= 0) juiceWaves.splice(index, 1);
+  }
+  screenShake *= 0.82;
+  if (screenShake < 0.15) screenShake = 0;
+}
+
+function handleJuiceKey() {
+  const nextJuice = juiceOrder[unlockedJuices.length];
+  if (nextJuice && totalBricksBroken >= unlockedJuices.length * JUICE_MILESTONE) {
+    unlockedJuices.push(nextJuice);
+    selectedJuice = nextJuice;
+    ballTrail = [];
+    announceJuice(`${juices[nextJuice].name} UNLOCKED`);
+    saveProfile();
+  } else if (unlockedJuices.length > 1) {
+    const currentIndex = unlockedJuices.indexOf(selectedJuice);
+    selectedJuice = unlockedJuices[(currentIndex + 1) % unlockedJuices.length];
+    ballTrail = [];
+    announceJuice(`${juices[selectedJuice].name} JUICE`);
+    saveProfile();
+  } else {
+    announceJuice(`${Math.max(0, JUICE_MILESTONE - totalBricksBroken)} MORE BLOCKS TO UNLOCK JUICE`);
+  }
+  updateJuiceStatus();
+}
+
+function announceJuice(message) {
+  juiceMessage = message;
+  juiceMessageUntil = performance.now() + 2200;
+}
+
+function updateJuiceStatus() {
+  const nextMilestone = unlockedJuices.length * JUICE_MILESTONE;
+  const progress = Math.min(totalBricksBroken, nextMilestone);
+  ui.juiceStatus.textContent = `${juices[selectedJuice].name} · ${String(progress).padStart(3, "0")}/${String(nextMilestone).padStart(3, "0")} · J`;
 }
 
 function applyPowerUp(type) {
@@ -180,7 +275,7 @@ function applyPowerUp(type) {
     }
     slowUntil = now + POWERUP_DURATION;
   } else if (type === "life") {
-    lives = Math.min(lives + 1, skins[selectedSkin].maxLives || 9);
+    GameState.lives = Math.min(GameState.lives + 1, skins[selectedSkin].maxLives || 9);
     updateHud();
   }
 }
@@ -299,7 +394,7 @@ function unlockAll() {
 
 function saveProfile(run = savedProgress) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, highestLevel, adminUnlocked, run }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, highestLevel, adminUnlocked, run, totalBricksBroken, unlockedJuices, selectedJuice }));
   } catch (error) {
     ui.status.textContent = "SAVE UNAVAILABLE";
   }
@@ -310,8 +405,8 @@ function saveProgress() {
   const now = performance.now();
   savedProgress = {
     level: currentLevel,
-    score,
-    lives,
+    score: GameState.score,
+    lives: GameState.lives,
     bricks: bricks.map((brick) => ({ ...brick })),
     powerUps: powerUps.map((powerUp) => ({ ...powerUp })),
     ball: { ...ball },
@@ -329,6 +424,9 @@ function loadProfile() {
     if (!profile || profile.version !== 1) return;
     highestLevel = Math.max(1, Math.min(MAX_LEVELS, Number(profile.highestLevel) || 1));
     adminUnlocked = profile.adminUnlocked === true;
+    totalBricksBroken = Math.max(0, Math.floor(Number(profile.totalBricksBroken) || 0));
+    unlockedJuices = ["classic", ...juiceOrder.filter((name) => name !== "classic" && Array.isArray(profile.unlockedJuices) && profile.unlockedJuices.includes(name))];
+    selectedJuice = unlockedJuices.includes(profile.selectedJuice) ? profile.selectedJuice : "classic";
     const run = profile.run;
     if (
       run && Number.isInteger(run.level) && run.level >= 1 && run.level <= MAX_LEVELS &&
@@ -346,9 +444,9 @@ function resumeSavedGame() {
   if (!savedProgress) return startNewGame();
   const save = savedProgress;
   currentLevel = save.level;
-  score = Math.max(0, save.score);
+  GameState.score = Math.max(0, save.score);
   selectedSkin = isSkinUnlocked(save.skin) ? save.skin : "ion";
-  lives = skins[selectedSkin].maxLives || Math.max(1, Math.min(9, save.lives));
+  GameState.lives = skins[selectedSkin].maxLives || Math.max(1, Math.min(9, save.lives));
   bricks = save.bricks;
   powerUps = Array.isArray(save.powerUps) ? save.powerUps : [];
   Object.assign(ball, save.ball);
@@ -374,6 +472,7 @@ document.addEventListener("keydown", function (event) {
   const key = event.key.toLowerCase();
   keys[key] = true;
   if (event.key.startsWith("Arrow")) event.preventDefault();
+  if (key === "j" && !event.repeat) handleJuiceKey();
   if (key === "escape" || key === "p") {
     if (gameState === "playing") showScreen("paused");
     else if (gameState === "paused") hideScreen();
@@ -421,11 +520,12 @@ function update() {
   bounceOffPaddle();
   bounceOffBricks();
   updatePowerUps();
+  updateJuiceEffects();
 
   if (ball.y > HEIGHT) {
-    lives -= 1;
+    GameState.lives -= 1;
     updateHud();
-    if (lives <= 0) {
+    if (GameState.lives <= 0) {
       clearSavedRun();
       showScreen("gameover");
     } else {
@@ -447,6 +547,10 @@ function movePaddle() {
 }
 
 function moveBall() {
+  if (juices[selectedJuice].trail) {
+    ballTrail.unshift({ x: ball.x + ball.width / 2, y: ball.y + ball.height / 2 });
+    if (ballTrail.length > 10) ballTrail.pop();
+  }
   ball.x += ball.vx;
   ball.y += ball.vy;
 }
@@ -488,6 +592,17 @@ function drawPaddle() {
 
 function drawBall() {
   const skin = skins[selectedSkin];
+  if (juices[selectedJuice].trail) {
+    for (let index = ballTrail.length - 1; index >= 0; index--) {
+      const point = ballTrail[index];
+      ctx.globalAlpha = (1 - index / ballTrail.length) * 0.35;
+      ctx.fillStyle = skin.ball;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, ball.width * (1 - index / ballTrail.length) * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
   ctx.shadowColor = skin.glow;
   ctx.shadowBlur = 18;
   ctx.fillStyle = skin.ball;
@@ -495,6 +610,34 @@ function drawBall() {
   ctx.arc(ball.x + ball.width / 2, ball.y + ball.height / 2, ball.width / 2, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
+}
+
+function drawJuiceEffects() {
+  for (const wave of juiceWaves) {
+    ctx.globalAlpha = wave.life / 22;
+    ctx.strokeStyle = wave.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  for (const particle of juiceParticles) {
+    ctx.globalAlpha = particle.life / particle.maxLife;
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (juiceMessage && performance.now() < juiceMessageUntil) {
+    ctx.fillStyle = "rgba(4, 12, 16, 0.78)";
+    ctx.fillRect(WIDTH / 2 - 150, HEIGHT - 66, 300, 30);
+    ctx.fillStyle = "#c9fa75";
+    ctx.font = "700 11px Orbitron, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(juiceMessage, WIDTH / 2, HEIGHT - 51, 280);
+  }
 }
 
 function drawPowerUps() {
@@ -515,11 +658,15 @@ function drawPowerUps() {
 }
 
 function draw() {
+  ctx.save();
+  if (screenShake) ctx.translate((Math.random() - 0.5) * screenShake * 2, (Math.random() - 0.5) * screenShake * 2);
   drawBackground();
   drawPaddle();
   drawBall();
   drawBricks();
   drawPowerUps();
+  drawJuiceEffects();
+  ctx.restore();
 }
 
 const STEP = 1000 / 60;
@@ -544,6 +691,7 @@ function start() {
   ui.skinPerk.textContent = skins[selectedSkin].perk;
   updateSkinPicker();
   updateAdminControls();
+  updateJuiceStatus();
   showScreen("menu");
   lastTime = performance.now();
   requestAnimationFrame(frame);
