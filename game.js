@@ -16,12 +16,26 @@ const POWERUP_DURATION = 9000;
 const SAVE_KEY = "neonBreakerProgressV1";
 const SAVE_INTERVAL = 5000;
 const JUICE_MILESTONE = 50;
-const juices = {
+const baseJuices = {
   classic: { name: "CLASSIC", particles: 6, shake: 0, wave: false, trail: false },
   sparks: { name: "SPARKS", particles: 14, shake: 0, wave: false, trail: false },
   shockwave: { name: "SHOCKWAVE", particles: 18, shake: 2, wave: true, trail: false },
   overdrive: { name: "OVERDRIVE", particles: 26, shake: 5, wave: true, trail: true }
 };
+const extraJuices = Object.fromEntries(Array.from({ length: 100 }, (_, index) => {
+  const id = String(index + 1).padStart(3, "0");
+  return [
+    `juice${id}`,
+    {
+      name: `JUICE ${id}`,
+      particles: 8 + ((index * 7) % 20),
+      shake: (index % 6) * 0.6,
+      wave: index % 3 === 0,
+      trail: index % 4 === 0
+    }
+  ];
+}));
+const juices = { ...baseJuices, ...extraJuices };
 const juiceOrder = Object.keys(juices);
 
 const GameState = { score: 0, lives: 3 };
@@ -521,14 +535,20 @@ function update() {
   updateJuiceEffects();
 
   if (ball.y > HEIGHT) {
-    GameState.lives -= 1;
-    updateHud();
-    if (GameState.lives <= 0) {
-      clearSavedRun();
-      showScreen("gameover");
-    } else {
+    if (selectedSkin === "admin") {
+      announceJuice("ADMIN RESET");
       resetBall();
       saveProgress();
+    } else {
+      GameState.lives -= 1;
+      updateHud();
+      if (GameState.lives <= 0) {
+        clearSavedRun();
+        showScreen("gameover");
+      } else {
+        resetBall();
+        saveProgress();
+      }
     }
   }
   if (gameState === "playing" && bricks.length === 0) completeLevel();
