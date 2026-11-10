@@ -516,10 +516,7 @@ function update() {
   if (gameState !== "playing") return;
   updateBrickStrategies();
   movePaddle();
-  moveBall();
-  bounceOffWalls();
-  bounceOffPaddle();
-  bounceOffBricks();
+  moveBallAndResolveCollisions();
   updatePowerUps();
   updateJuiceEffects();
 
@@ -547,13 +544,20 @@ function movePaddle() {
   paddle.x = Math.max(0, Math.min(WIDTH - paddle.width, paddle.x));
 }
 
-function moveBall() {
+function moveBallAndResolveCollisions() {
   if (juices[selectedJuice].trail) {
     ballTrail.unshift({ x: ball.x + ball.width / 2, y: ball.y + ball.height / 2 });
     if (ballTrail.length > 10) ballTrail.pop();
   }
-  ball.x += ball.vx;
-  ball.y += ball.vy;
+
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(ball.vx), Math.abs(ball.vy)) / 6));
+  for (let step = 0; step < steps; step++) {
+    ball.x += ball.vx / steps;
+    ball.y += ball.vy / steps;
+    bounceOffWalls();
+    bounceOffPaddle();
+    bounceOffBricks();
+  }
 }
 
 function drawBackground() {

@@ -40,26 +40,42 @@ function makeBricks(level = 1) {
   return list;
 }
 
+function slideBrickRow(rowBricks) {
+  const left = Math.min(...rowBricks.map((brick) => brick.x));
+  const right = Math.max(...rowBricks.map((brick) => brick.x + brick.width));
+  const speed = rowBricks[0].strategySpeed;
+  if (left + speed < 0 || right + speed > WIDTH) {
+    for (const brick of rowBricks) brick.strategySpeed *= -1;
+  }
+  for (const brick of rowBricks) brick.x += brick.strategySpeed;
+}
+
+const brickStrategies = new Map([
+  ["slide", slideBrickRow],
+  ["stayStill", () => {}]
+]);
+
 function updateBrickStrategies() {
-  const rows = new Map();
+  const strategyRows = new Map();
   for (const brick of bricks) {
-    if (brick.strategy !== "slide") {
+    if (!Number.isInteger(brick.row)) {
       brick.row = Math.round((brick.y - BRICKS_TOP) / (BRICK_HEIGHT + BRICK_GAP));
-      brick.strategy = "slide";
+    }
+    if (typeof brick.strategy !== "string") brick.strategy = "slide";
+    if (brick.strategy === "slide" && !Number.isFinite(brick.strategySpeed)) {
       brick.strategySpeed = brick.row % 2 === 0 ? 2 : -2;
     }
+
+    if (!strategyRows.has(brick.strategy)) strategyRows.set(brick.strategy, new Map());
+    const rows = strategyRows.get(brick.strategy);
     if (!rows.has(brick.row)) rows.set(brick.row, []);
     rows.get(brick.row).push(brick);
   }
 
-  for (const rowBricks of rows.values()) {
-    const left = Math.min(...rowBricks.map((brick) => brick.x));
-    const right = Math.max(...rowBricks.map((brick) => brick.x + brick.width));
-    const speed = rowBricks[0].strategySpeed;
-    if (left + speed < 0 || right + speed > WIDTH) {
-      for (const brick of rowBricks) brick.strategySpeed *= -1;
-    }
-    for (const brick of rowBricks) brick.x += brick.strategySpeed;
+  for (const [name, rows] of strategyRows) {
+    const strategy = brickStrategies.get(name);
+    if (!strategy) continue;
+    for (const rowBricks of rows.values()) strategy(rowBricks);
   }
 }
 
