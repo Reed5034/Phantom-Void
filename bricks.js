@@ -26,15 +26,41 @@ function makeBricks(level = 1) {
       list.push({
         x: left + col * (BRICK_WIDTH + BRICK_GAP),
         y: BRICKS_TOP + row * (BRICK_HEIGHT + BRICK_GAP),
+        row,
         width: BRICK_WIDTH,
         height: BRICK_HEIGHT,
         color: BRICK_COLORS[row % BRICK_COLORS.length],
-        hitPoints
+        hitPoints,
+        strategy: "slide",
+        strategySpeed: row % 2 === 0 ? 2 : -2
       });
     }
   }
 
   return list;
+}
+
+function updateBrickStrategies() {
+  const rows = new Map();
+  for (const brick of bricks) {
+    if (brick.strategy !== "slide") {
+      brick.row = Math.round((brick.y - BRICKS_TOP) / (BRICK_HEIGHT + BRICK_GAP));
+      brick.strategy = "slide";
+      brick.strategySpeed = brick.row % 2 === 0 ? 2 : -2;
+    }
+    if (!rows.has(brick.row)) rows.set(brick.row, []);
+    rows.get(brick.row).push(brick);
+  }
+
+  for (const rowBricks of rows.values()) {
+    const left = Math.min(...rowBricks.map((brick) => brick.x));
+    const right = Math.max(...rowBricks.map((brick) => brick.x + brick.width));
+    const speed = rowBricks[0].strategySpeed;
+    if (left + speed < 0 || right + speed > WIDTH) {
+      for (const brick of rowBricks) brick.strategySpeed *= -1;
+    }
+    for (const brick of rowBricks) brick.x += brick.strategySpeed;
+  }
 }
 
 // Draws every brick in the list.
