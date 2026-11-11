@@ -67,7 +67,7 @@ const skins = {
   prism: { name: "PRISM", ball: "#b2c9ff", paddle: "#7ea1e8", glow: "#b2c9ff", unlockLevel: 25, speedFactor: 0.84, perk: "PERMANENT 16% SLOWER BALL. SLOW DROPS STACK." },
   nova: { name: "NOVA", ball: "#ff9bb4", paddle: "#f26d8d", glow: "#ff9bb4", unlockLevel: 33, startingLives: 2, perk: "PERMANENT +2 STARTING LIVES. LIFE DROPS STACK." },
   zenith: { name: "ZENITH", ball: "#f1f4ff", paddle: "#bbc8d2", glow: "#f1f4ff", unlockLevel: 50, wideFactor: 1.35, scoreFactor: 1.15, perk: "PERMANENT +35% WIDTH AND +15% SCORE. WIDE DROPS STACK." },
-  admin: { name: "ADMIN", ball: "#991010", paddle: "#991010", glow: "#3b3939", unlockLevel: 1, requiresAdmin: true, maxWidth: true, speedFactor: MAX_BALL_SPEED / BALL_SPEED, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. MAX BALL AND PADDLE SPEED. 100 LIVES." }
+  admin: { name: "ADMIN", ball: "#991010", paddle: "#991010", glow: "#3b3939", unlockLevel: 1, requiresAdmin: true, maxWidth: true, speedFactor: (MAX_BALL_SPEED / BALL_SPEED) * 3, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. MAX BALL AND PADDLE SPEED. 100 LIVES." }
 };
 let selectedSkin = "ion";
 let gameState = "menu";
@@ -173,24 +173,31 @@ const sound = {
     if (!this.enabled || gameState !== "playing" || this.musicTimer) return;
 
     this.init();
-    const melody = [0, 3, 7, 10, 12, 10, 7, 3, 5, 8, 12, 10, 7, 3, 2, 0];
-    const bass = [0, 0, -5, -5];
+    const lead = [0, 3, 7, 10, 12, 10, 7, 3, 5, 8, 12, 10, 7, 3, 5, 7, 10, 12, 10, 7, 5, 3, 2, 0];
+    const bass = [0, 0, -5, -5, -7, -7, -5, -5, 0, 0, -5, -5, -9, -9, -7, -7];
+    const harmony = [12, 10, 7, 5, 12, 10, 7, 5];
 
     this.musicTimer = window.setInterval(() => {
       if (!this.enabled || gameState !== "playing") return;
 
-      const melodyIndex = this.musicStep % melody.length;
+      const leadIndex = this.musicStep % lead.length;
       const bassIndex = this.musicStep % bass.length;
-      const melodyFrequency = 220 * Math.pow(2, (melody[melodyIndex] + 12) / 12);
+      const harmonyIndex = this.musicStep % harmony.length;
+      const leadFrequency = 220 * Math.pow(2, (lead[leadIndex] + 12) / 12);
       const bassFrequency = 55 * Math.pow(2, (bass[bassIndex] + 12) / 12);
+      const harmonyFrequency = 220 * Math.pow(2, (harmony[harmonyIndex] + 12) / 12);
 
-      this.tone({ frequency: melodyFrequency, duration: 0.18, volume: 0.025, type: "square", sweep: 35 });
+      this.tone({ frequency: leadFrequency, duration: 0.14, volume: 0.035, type: "square", sweep: 120 });
+      this.tone({ frequency: harmonyFrequency, duration: 0.16, volume: 0.022, type: "triangle", sweep: 40 });
       if (this.musicStep % 2 === 0) {
-        this.tone({ frequency: bassFrequency, duration: 0.22, volume: 0.028, type: "triangle", sweep: 10 });
+        this.tone({ frequency: bassFrequency, duration: 0.2, volume: 0.03, type: "sawtooth", sweep: 15 });
+      }
+      if (this.musicStep % 4 === 0) {
+        this.tone({ frequency: leadFrequency * 1.5, duration: 0.09, volume: 0.018, type: "triangle", sweep: 60 });
       }
 
       this.musicStep += 1;
-    }, 180);
+    }, 120);
   },
 
   stopMusicLoop() {
@@ -734,13 +741,28 @@ function drawBackground() {
   }
 }
 
+function rainbowColor(position) {
+  const hue = (performance.now() * 0.08 + position * 40) % 360;
+  return `hsl(${hue}, 95%, 65%)`;
+}
+
 function drawPaddle() {
   const skin = skins[selectedSkin];
   const gradient = ctx.createLinearGradient(paddle.x, 0, paddle.x + paddle.width, 0);
-  gradient.addColorStop(0, skin.paddle);
-  gradient.addColorStop(0.5, skin.ball);
-  gradient.addColorStop(1, skin.paddle);
-  ctx.shadowColor = skin.glow;
+  if (selectedSkin === "admin") {
+    gradient.addColorStop(0, rainbowColor(0));
+    gradient.addColorStop(0.2, rainbowColor(1));
+    gradient.addColorStop(0.4, rainbowColor(2));
+    gradient.addColorStop(0.6, rainbowColor(3));
+    gradient.addColorStop(0.8, rainbowColor(4));
+    gradient.addColorStop(1, rainbowColor(5));
+    ctx.shadowColor = "rgba(255, 255, 255, 0.9)";
+  } else {
+    gradient.addColorStop(0, skin.paddle);
+    gradient.addColorStop(0.5, skin.ball);
+    gradient.addColorStop(1, skin.paddle);
+    ctx.shadowColor = skin.glow;
+  }
   ctx.shadowBlur = 18;
   ctx.fillStyle = gradient;
   ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
@@ -749,20 +771,22 @@ function drawPaddle() {
 
 function drawBall() {
   const skin = skins[selectedSkin];
+  const ballColor = selectedSkin === "admin" ? rainbowColor(6) : skin.ball;
+  const glowColor = selectedSkin === "admin" ? "rgba(255,255,255,0.9)" : skin.glow;
   if (juices[selectedJuice].trail) {
     for (let index = ballTrail.length - 1; index >= 0; index--) {
       const point = ballTrail[index];
       ctx.globalAlpha = (1 - index / ballTrail.length) * 0.35;
-      ctx.fillStyle = skin.ball;
+      ctx.fillStyle = ballColor;
       ctx.beginPath();
       ctx.arc(point.x, point.y, ball.width * (1 - index / ballTrail.length) * 0.42, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
-  ctx.shadowColor = skin.glow;
+  ctx.shadowColor = glowColor;
   ctx.shadowBlur = 18;
-  ctx.fillStyle = skin.ball;
+  ctx.fillStyle = ballColor;
   ctx.beginPath();
   ctx.arc(ball.x + ball.width / 2, ball.y + ball.height / 2, ball.width / 2, 0, Math.PI * 2);
   ctx.fill();
