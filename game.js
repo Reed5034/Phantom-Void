@@ -8,7 +8,7 @@ const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const MAX_LEVELS = 50;
 const BALL_SPEED = 4;
-const MAX_BALL_SPEED = BALL_SPEED * 6;
+const LEGACY_ADMIN_SPEED_MULTIPLIER = 6 * 3;
 const PADDLE_WIDTH = 92;
 const MAX_PADDLE_SPEED = 12;
 const PADDLE_WIDE_FACTOR = 1.55;
@@ -81,7 +81,7 @@ const skins = {
   prism: { name: "PRISM", ball: "#b2c9ff", paddle: "#7ea1e8", glow: "#b2c9ff", unlockLevel: 25, speedFactor: 0.84, perk: "PERMANENT 16% SLOWER BALL. SLOW DROPS STACK." },
   nova: { name: "NOVA", ball: "#ff9bb4", paddle: "#f26d8d", glow: "#ff9bb4", unlockLevel: 33, startingLives: 2, perk: "PERMANENT +2 STARTING LIVES. LIFE DROPS STACK." },
   zenith: { name: "ZENITH", ball: "#f1f4ff", paddle: "#bbc8d2", glow: "#f1f4ff", unlockLevel: 50, wideFactor: 1.35, scoreFactor: 1.15, perk: "PERMANENT +35% WIDTH AND +15% SCORE. WIDE DROPS STACK." },
-  admin: { name: "ADMIN", ball: "#991010", paddle: "#991010", glow: "#3b3939", unlockLevel: 1, requiresAdmin: true, maxWidth: true, speedFactor: (MAX_BALL_SPEED / BALL_SPEED) * 3, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. MAX BALL AND PADDLE SPEED. 100 LIVES." }
+  admin: { name: "ADMIN", ball: "#991010", paddle: "#991010", glow: "#3b3939", unlockLevel: 1, requiresAdmin: true, maxWidth: true, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. S CYCLES BALL SPEED FROM 1X TO 100X. 100 LIVES." }
 };
 let selectedSkin = "ion";
 let gameState = "menu";
@@ -103,6 +103,16 @@ let juiceMessageUntil = 0;
 let wideUntil = 0;
 let slowUntil = 0;
 let lastSaveAt = 0;
+let adminSpeedMultiplier = 1;
+
+function getBallSpeedFactor(skinName = selectedSkin) {
+  return skinName === "admin" ? adminSpeedMultiplier : skins[skinName].speedFactor || 1;
+}
+
+function sanitizeAdminSpeedMultiplier(value) {
+  const multiplier = Number(value);
+  return Number.isInteger(multiplier) ? Math.max(1, Math.min(100, multiplier)) : 1;
+}
 
 const sound = {
   enabled: true,
@@ -235,7 +245,7 @@ const keys = {};
 function resetBall() {
   ball.x = WIDTH / 2 - ball.width / 2;
   ball.y = HEIGHT / 2 - ball.height / 2;
-  const speed = BALL_SPEED * (skins[selectedSkin].speedFactor || 1) * (slowUntil > performance.now() ? 0.72 : 1);
+  const speed = BALL_SPEED * getBallSpeedFactor() * (slowUntil > performance.now() ? 0.72 : 1);
   ball.vx = speed;
   ball.vy = speed;
 }
@@ -295,13 +305,13 @@ function startNewGame() {
 function setSkin(name) {
   if (!isSkinUnlocked(name)) return;
   sound.play("paddle");
-  const oldSpeedFactor = skins[selectedSkin].speedFactor || 1;
+  const oldSpeedFactor = getBallSpeedFactor();
   const oldWidth = paddle.width;
   selectedSkin = name;
   GameState.lives = skins[selectedSkin].maxLives
     ? skins[selectedSkin].maxLives
     : Math.min(GameState.lives, 9);
-  const speedRatio = (skins[selectedSkin].speedFactor || 1) / oldSpeedFactor;
+  const speedRatio = getBallSpeedFactor() / oldSpeedFactor;
   ball.vx *= speedRatio;
   ball.vy *= speedRatio;
   paddle.speed = skins[selectedSkin].paddleSpeed || 6;
@@ -317,6 +327,7 @@ function setSkin(name) {
     savedProgress.lives = GameState.lives;
     savedProgress.ball = { ...ball };
     savedProgress.paddleX = paddle.x;
+    savedProgress.adminSpeedMultiplier = adminSpeedMultiplier;
     savedProgress.wideRemaining = Math.max(0, wideUntil - performance.now());
     savedProgress.slowRemaining = Math.max(0, slowUntil - performance.now());
   }
@@ -417,6 +428,32 @@ function handleJuiceKey() {
   updateJuiceStatus();
 }
 
+function cycleAdminBallSpeed() {
+  if (selectedSkin !== "admin" || !["menu", "playing", "paused"].includes(gameState)) return;
+
+  const previousMultiplier = adminSpeedMultiplier;
+  adminSpeedMultiplier = previousMultiplier >= 100
+    ? 1
+    : previousMultiplier === 1
+      ? 5
+      : Math.min(100, previousMultiplier + 5);
+  const speedRatio = adminSpeedMultiplier / previousMultiplier;
+  ball.vx *= speedRatio;
+  ball.vy *= speedRatio;
+  updateHud();
+  announceJuice(`ADMIN BALL SPEED ${adminSpeedMultiplier}X`);
+  sound.play("juice");
+  if (gameState === "playing") {
+    saveProgress();
+  } else {
+    if (savedProgress) {
+      savedProgress.ball = { ...ball };
+      savedProgress.adminSpeedMultiplier = adminSpeedMultiplier;
+    }
+    saveProfile();
+  }
+}
+
 function announceJuice(message) {
   juiceMessage = message;
   juiceMessageUntil = performance.now() + 2200;
@@ -480,7 +517,7 @@ function updateEffectStatus(now = performance.now()) {
   const skin = skins[selectedSkin];
   if (skin.maxWidth) effects.push("MAX PADDLE WIDTH");
   else if (skin.wideFactor) effects.push(`PASSIVE WIDE +${Math.round((skin.wideFactor - 1) * 100)}%`);
-  if (skin.speedFactor >= MAX_BALL_SPEED / BALL_SPEED) effects.push("MAX BALL SPEED");
+  if (selectedSkin === "admin") effects.push(`BALL SPEED ${adminSpeedMultiplier}X · PRESS S`);
   else if (skin.speedFactor) effects.push(`PASSIVE SLOW ${Math.round((1 - skin.speedFactor) * 100)}%`);
   if (skin.maxLives) effects.push(`${skin.maxLives} STARTING LIVES`);
   else if (skin.startingLives) effects.push(`PASSIVE +${skin.startingLives} LIFE${skin.startingLives > 1 ? "S" : ""}`);
@@ -564,7 +601,7 @@ function unlockAll() {
 
 function saveProfile(run = savedProgress) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, highestLevel, adminUnlocked, run, totalBricksBroken, unlockedJuices, selectedJuice }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, highestLevel, adminUnlocked, run, totalBricksBroken, unlockedJuices, selectedJuice, adminSpeedMultiplier }));
   } catch (error) {
     ui.status.textContent = "SAVE UNAVAILABLE";
   }
@@ -582,6 +619,7 @@ function saveProgress() {
     ball: { ...ball },
     paddleX: paddle.x,
     skin: selectedSkin,
+    adminSpeedMultiplier,
     wideRemaining: Math.max(0, wideUntil - now),
     slowRemaining: Math.max(0, slowUntil - now)
   };
@@ -595,6 +633,7 @@ function loadProfile() {
     highestLevel = Math.max(1, Math.min(MAX_LEVELS, Number(profile.highestLevel) || 1));
     adminUnlocked = profile.adminUnlocked === true;
     totalBricksBroken = Math.max(0, Math.floor(Number(profile.totalBricksBroken) || 0));
+    adminSpeedMultiplier = sanitizeAdminSpeedMultiplier(profile.adminSpeedMultiplier);
     unlockedJuices = ["classic", ...juiceOrder.filter((name) => name !== "classic" && Array.isArray(profile.unlockedJuices) && profile.unlockedJuices.includes(name))];
     selectedJuice = unlockedJuices.includes(profile.selectedJuice) ? profile.selectedJuice : "classic";
     const run = profile.run;
@@ -616,10 +655,19 @@ function resumeSavedGame() {
   currentLevel = save.level;
   GameState.score = Math.max(0, save.score);
   selectedSkin = isSkinUnlocked(save.skin) ? save.skin : "ion";
+  const savedAdminMultiplier = Number(save.adminSpeedMultiplier);
+  const savedBall = { ...save.ball };
+  if (selectedSkin === "admin") {
+    adminSpeedMultiplier = sanitizeAdminSpeedMultiplier(savedAdminMultiplier);
+    if (!Number.isInteger(savedAdminMultiplier)) {
+      savedBall.vx *= adminSpeedMultiplier / LEGACY_ADMIN_SPEED_MULTIPLIER;
+      savedBall.vy *= adminSpeedMultiplier / LEGACY_ADMIN_SPEED_MULTIPLIER;
+    }
+  }
   GameState.lives = skins[selectedSkin].maxLives || Math.max(1, Math.min(9, save.lives));
   bricks = save.bricks;
   powerUps = Array.isArray(save.powerUps) ? save.powerUps : [];
-  Object.assign(ball, save.ball);
+  Object.assign(ball, savedBall);
   wideUntil = performance.now() + Math.max(0, Number(save.wideRemaining) || 0);
   slowUntil = performance.now() + Math.max(0, Number(save.slowRemaining) || 0);
   paddle.width = skins[selectedSkin].maxWidth
@@ -643,6 +691,7 @@ document.addEventListener("keydown", function (event) {
   keys[key] = true;
   if (event.key.startsWith("Arrow")) event.preventDefault();
   if (key === "j" && !event.repeat) handleJuiceKey();
+  if (key === "s" && !event.repeat) cycleAdminBallSpeed();
   if (key === "escape" || key === "p") {
     sound.play("wall");
     if (gameState === "playing") showScreen("paused");
