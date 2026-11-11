@@ -93,6 +93,8 @@ let lastSaveAt = 0;
 const sound = {
   enabled: true,
   context: null,
+  musicTimer: null,
+  musicStep: 0,
 
   init() {
     if (!this.context) {
@@ -108,6 +110,7 @@ const sound = {
     this.enabled = !this.enabled;
     if (this.enabled) this.init();
     this.updateToggle();
+    this.syncMusicState();
   },
 
   updateToggle() {
@@ -156,6 +159,45 @@ const sound = {
 
     const preset = presets[name] || presets.paddle;
     this.tone(preset);
+  },
+
+  syncMusicState() {
+    if (!this.enabled || gameState !== "playing") {
+      this.stopMusicLoop();
+      return;
+    }
+    this.startMusicLoop();
+  },
+
+  startMusicLoop() {
+    if (!this.enabled || gameState !== "playing" || this.musicTimer) return;
+
+    this.init();
+    const melody = [0, 3, 7, 10, 12, 10, 7, 3, 5, 8, 12, 10, 7, 3, 2, 0];
+    const bass = [0, 0, -5, -5];
+
+    this.musicTimer = window.setInterval(() => {
+      if (!this.enabled || gameState !== "playing") return;
+
+      const melodyIndex = this.musicStep % melody.length;
+      const bassIndex = this.musicStep % bass.length;
+      const melodyFrequency = 220 * Math.pow(2, (melody[melodyIndex] + 12) / 12);
+      const bassFrequency = 55 * Math.pow(2, (bass[bassIndex] + 12) / 12);
+
+      this.tone({ frequency: melodyFrequency, duration: 0.18, volume: 0.025, type: "square", sweep: 35 });
+      if (this.musicStep % 2 === 0) {
+        this.tone({ frequency: bassFrequency, duration: 0.22, volume: 0.028, type: "triangle", sweep: 10 });
+      }
+
+      this.musicStep += 1;
+    }, 180);
+  },
+
+  stopMusicLoop() {
+    if (this.musicTimer) {
+      window.clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
   }
 };
 
@@ -188,6 +230,7 @@ function updateHud() {
 function showScreen(type) {
   if (type === "paused" && gameState === "playing") saveProgress();
   gameState = type;
+  sound.syncMusicState();
   ui.screen.classList.add("is-visible");
   ui.menuAction.hidden = type !== "paused" && !(type === "menu" && savedProgress);
   ui.adminBar.hidden = type !== "menu";
@@ -211,6 +254,7 @@ function showScreen(type) {
 function hideScreen() {
   ui.screen.classList.remove("is-visible");
   gameState = "playing";
+  sound.syncMusicState();
   lastSaveAt = performance.now();
   saveProgress();
 }
