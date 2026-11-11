@@ -16,22 +16,36 @@ const POWERUP_DURATION = 9000;
 const SAVE_KEY = "neonBreakerProgressV1";
 const SAVE_INTERVAL = 5000;
 const JUICE_MILESTONE = 50;
+const juiceProfiles = [
+  { name: "PRISM", filter: "hue-rotate(95deg) saturate(1.6)", particle: "diamond", particles: 18, wave: true, trail: true },
+  { name: "MONO", filter: "grayscale(1) contrast(1.35)", particle: "square", particles: 12, shake: 0.6 },
+  { name: "NEGATIVE", filter: "invert(1) hue-rotate(180deg)", particle: "ring", particles: 16, wave: true },
+  { name: "NIGHT VISION", filter: "sepia(1) hue-rotate(70deg) saturate(2)", overlay: "nightvision", particle: "square", particles: 20, trail: true },
+  { name: "THERMAL", filter: "hue-rotate(190deg) saturate(2) contrast(1.15)", overlay: "thermal", particle: "flame", particles: 24, wave: true },
+  { name: "ARCADE", filter: "saturate(2) contrast(1.2)", overlay: "scanlines", particle: "square", particles: 22, trail: true },
+  { name: "DREAM", filter: "hue-rotate(290deg) saturate(1.4) brightness(1.12)", particle: "bubble", particles: 14, wave: true },
+  { name: "GLITCH", filter: "contrast(1.5) saturate(1.8)", overlay: "glitch", particle: "streak", particles: 26, shake: 1.8 },
+  { name: "HOLOGRAM", filter: "hue-rotate(145deg) saturate(1.7)", overlay: "scanlines", particle: "diamond", particles: 18, trail: true },
+  { name: "VINTAGE", filter: "sepia(0.85) contrast(1.15)", particle: "square", particles: 10, wave: true },
+  { name: "POLAR", filter: "hue-rotate(215deg) saturate(1.5)", overlay: "vignette", particle: "ring", particles: 16, trail: true },
+  { name: "LASER", filter: "saturate(2.2) contrast(1.25)", overlay: "vignette", particle: "streak", particles: 28, wave: true, trail: true }
+];
 const baseJuices = {
-  classic: { name: "CLASSIC", particles: 6, shake: 0, wave: false, trail: false },
-  sparks: { name: "SPARKS", particles: 14, shake: 0, wave: false, trail: false },
-  shockwave: { name: "SHOCKWAVE", particles: 18, shake: 2, wave: true, trail: false },
-  overdrive: { name: "OVERDRIVE", particles: 26, shake: 5, wave: true, trail: true }
+  classic: { name: "CLASSIC", particles: 6, shake: 0, wave: false, trail: false, particle: "circle" },
+  sparks: { name: "SPARKS", particles: 14, shake: 0, wave: false, trail: false, particle: "streak" },
+  shockwave: { name: "SHOCKWAVE", particles: 18, shake: 2, wave: true, trail: false, particle: "circle" },
+  overdrive: { name: "OVERDRIVE", particles: 26, shake: 5, wave: true, trail: true, particle: "diamond" }
 };
 const extraJuices = Object.fromEntries(Array.from({ length: 100 }, (_, index) => {
   const id = String(index + 1).padStart(3, "0");
+  const profile = juiceProfiles[index % juiceProfiles.length];
   return [
     `juice${id}`,
     {
-      name: `JUICE ${id}`,
-      particles: 8 + ((index * 7) % 20),
-      shake: (index % 6) * 0.6,
-      wave: index % 3 === 0,
-      trail: index % 4 === 0
+      ...profile,
+      name: `${profile.name} ${String(Math.floor(index / juiceProfiles.length) + 1).padStart(2, "0")}`,
+      particles: profile.particles + (index % 3) * 3,
+      shake: profile.shake || 0
     }
   ];
 }));
@@ -331,17 +345,26 @@ function spawnJuiceEffects(brick) {
   const style = juices[selectedJuice];
   for (let index = 0; index < style.particles; index++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 3.2;
+    const speed = style.particle === "flame"
+      ? 1.5 + Math.random() * 3
+      : style.particle === "bubble"
+        ? 0.5 + Math.random() * 1.5
+        : style.particle === "streak"
+          ? 2 + Math.random() * 4
+          : 1 + Math.random() * 3.2;
     const lifetime = 18 + Math.random() * 20;
     juiceParticles.push({
       x: brick.x + brick.width / 2,
       y: brick.y + brick.height / 2,
       vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
+      vy: style.particle === "flame" || style.particle === "bubble"
+        ? -Math.random() * speed
+        : Math.sin(angle) * speed,
       life: lifetime,
       maxLife: lifetime,
       radius: 1.5 + Math.random() * 2.5,
-      color: brick.color
+      color: brick.color,
+      shape: style.particle
     });
   }
   if (style.wave) {
@@ -355,7 +378,9 @@ function updateJuiceEffects() {
     const particle = juiceParticles[index];
     particle.x += particle.vx;
     particle.y += particle.vy;
-    particle.vy += 0.035;
+    if (particle.shape === "flame") particle.vy -= 0.025;
+    else if (particle.shape === "bubble") particle.vy -= 0.012;
+    else particle.vy += 0.035;
     particle.life -= 1;
     if (particle.life <= 0) juiceParticles.splice(index, 1);
   }
@@ -797,7 +822,7 @@ function drawJuiceEffects() {
   for (const wave of juiceWaves) {
     ctx.globalAlpha = wave.life / 22;
     ctx.strokeStyle = wave.color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = selectedJuice === "overdrive" ? 4 : 2;
     ctx.beginPath();
     ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -805,9 +830,34 @@ function drawJuiceEffects() {
   for (const particle of juiceParticles) {
     ctx.globalAlpha = particle.life / particle.maxLife;
     ctx.fillStyle = particle.color;
-    ctx.beginPath();
-    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-    ctx.fill();
+    if (particle.shape === "streak") {
+      ctx.strokeStyle = particle.color;
+      ctx.lineWidth = Math.max(1, particle.radius);
+      ctx.beginPath();
+      ctx.moveTo(particle.x, particle.y);
+      ctx.lineTo(particle.x - particle.vx * 2, particle.y - particle.vy * 2);
+      ctx.stroke();
+    } else if (particle.shape === "square") {
+      ctx.fillRect(particle.x - particle.radius, particle.y - particle.radius, particle.radius * 2, particle.radius * 2);
+    } else if (particle.shape === "diamond") {
+      ctx.beginPath();
+      ctx.moveTo(particle.x, particle.y - particle.radius * 1.5);
+      ctx.lineTo(particle.x + particle.radius, particle.y);
+      ctx.lineTo(particle.x, particle.y + particle.radius * 1.5);
+      ctx.lineTo(particle.x - particle.radius, particle.y);
+      ctx.closePath();
+      ctx.fill();
+    } else if (particle.shape === "ring" || particle.shape === "bubble") {
+      ctx.strokeStyle = particle.color;
+      ctx.lineWidth = particle.shape === "bubble" ? 1 : 2;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
   if (juiceMessage && performance.now() < juiceMessageUntil) {
@@ -819,6 +869,48 @@ function drawJuiceEffects() {
     ctx.textBaseline = "middle";
     ctx.fillText(juiceMessage, WIDTH / 2, HEIGHT - 51, 280);
   }
+}
+
+function drawVisionOverlay(overlay) {
+  if (!overlay) return;
+  ctx.save();
+
+  if (overlay === "nightvision") {
+    ctx.fillStyle = "rgba(35, 255, 95, 0.08)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.strokeStyle = "rgba(95, 255, 125, 0.12)";
+    ctx.lineWidth = 1;
+    for (let y = 12; y < HEIGHT; y += 24) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(WIDTH, y);
+      ctx.stroke();
+    }
+  } else if (overlay === "thermal") {
+    const heat = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+    heat.addColorStop(0, "rgba(255, 40, 0, 0.12)");
+    heat.addColorStop(0.5, "rgba(255, 190, 0, 0.08)");
+    heat.addColorStop(1, "rgba(0, 110, 255, 0.14)");
+    ctx.fillStyle = heat;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  } else if (overlay === "scanlines") {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+    for (let y = 2; y < HEIGHT; y += 4) ctx.fillRect(0, y, WIDTH, 1);
+  } else if (overlay === "glitch") {
+    const band = Math.floor(performance.now() / 90) % HEIGHT;
+    ctx.fillStyle = "rgba(255, 40, 190, 0.12)";
+    ctx.fillRect(0, band, WIDTH, 3);
+    ctx.fillStyle = "rgba(30, 240, 255, 0.1)";
+    ctx.fillRect(0, (band + 97) % HEIGHT, WIDTH, 2);
+  } else if (overlay === "vignette") {
+    const vignette = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.2, WIDTH / 2, HEIGHT / 2, HEIGHT * 0.8);
+    vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+    vignette.addColorStop(1, "rgba(0, 0, 20, 0.38)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  }
+
+  ctx.restore();
 }
 
 function drawPowerUps() {
@@ -841,12 +933,16 @@ function drawPowerUps() {
 function draw() {
   ctx.save();
   if (screenShake) ctx.translate((Math.random() - 0.5) * screenShake * 2, (Math.random() - 0.5) * screenShake * 2);
+  const visual = juices[selectedJuice];
+  if ("filter" in ctx) ctx.filter = visual.filter || "none";
   drawBackground();
   drawPaddle();
   drawBall();
   drawBricks();
   drawPowerUps();
   drawJuiceEffects();
+  ctx.filter = "none";
+  drawVisionOverlay(visual.overlay);
   ctx.restore();
 }
 
