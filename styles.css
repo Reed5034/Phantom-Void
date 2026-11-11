@@ -45,6 +45,7 @@ button {
 
 .topbar,
 .brand-lockup,
+.topbar-right,
 .system-status,
 .hud,
 .controls-row,
@@ -58,8 +59,34 @@ footer {
   margin: 0 0 22px;
 }
 
+.topbar-right {
+  gap: 12px;
+}
+
 .brand-lockup {
   gap: 14px;
+}
+
+.sound-toggle {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(110, 245, 237, 0.42);
+  background: rgba(110, 245, 237, 0.08);
+  color: var(--cyan);
+  cursor: pointer;
+  font: 700 8px "Orbitron", sans-serif;
+  letter-spacing: 0.06em;
+  transition: background 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.sound-toggle:hover {
+  background: rgba(110, 245, 237, 0.14);
+}
+
+.sound-toggle[aria-pressed="false"] {
+  border-color: rgba(151, 208, 207, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
 }
 
 .brand-mark {

@@ -23,14 +23,17 @@ function bounceOffWalls() {
   if (ball.x < 0) {
     ball.x = 0;
     ball.vx = -ball.vx;
+    sound.play("wall");
   }
   if (ball.x + ball.width > WIDTH) {
     ball.x = WIDTH - ball.width;
     ball.vx = -ball.vx;
+    sound.play("wall");
   }
   if (ball.y < 0) {
     ball.y = 0;
     ball.vy = -ball.vy;
+    sound.play("wall");
   }
 }
 
@@ -41,6 +44,7 @@ function bounceOffWalls() {
 function bounceOffPaddle() {
   if (boxesTouch(ball, paddle) && ball.vy > 0) {
     ball.y = paddle.y - ball.height;  // sit on top of the paddle
+    sound.play("paddle");
     if (selectedSkin === "admin") {
       const target = bricks.reduce((nearest, brick) => {
         const distance = Math.hypot(
@@ -98,6 +102,7 @@ function bounceOffBricks() {
     }
 
     brick.hitPoints = selectedSkin === "admin" ? 0 : brick.hitPoints - 1;
+    sound.play("brick");
     if (brick.hitPoints <= 0) {
       bricks.splice(index, 1);
       onBrickDestroyed(brick);

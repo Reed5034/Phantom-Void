@@ -54,6 +54,7 @@ const ui = {
   skinPicker: document.getElementById("skin-picker"),
   adminBar: document.getElementById("admin-bar"),
   unlockAll: document.getElementById("unlock-all"),
+  soundToggle: document.getElementById("sound-toggle"),
   primaryAction: document.getElementById("primary-action"),
   menuAction: document.getElementById("menu-action")
 };
@@ -88,6 +89,75 @@ let juiceMessageUntil = 0;
 let wideUntil = 0;
 let slowUntil = 0;
 let lastSaveAt = 0;
+
+const sound = {
+  enabled: true,
+  context: null,
+
+  init() {
+    if (!this.context) {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtor) this.context = new AudioCtor();
+    }
+    if (this.context && this.context.state === "suspended") {
+      this.context.resume();
+    }
+  },
+
+  toggle() {
+    this.enabled = !this.enabled;
+    if (this.enabled) this.init();
+    this.updateToggle();
+  },
+
+  updateToggle() {
+    if (!ui.soundToggle) return;
+    ui.soundToggle.textContent = this.enabled ? "SOUND ON" : "SOUND OFF";
+    ui.soundToggle.setAttribute("aria-pressed", String(this.enabled));
+  },
+
+  tone({ frequency = 440, duration = 0.08, volume = 0.04, type = "sine", sweep = 0, attack = 0.01 }) {
+    if (!this.enabled || !this.context) return;
+
+    const now = this.context.currentTime;
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, now);
+    if (sweep) oscillator.frequency.linearRampToValueAtTime(frequency + sweep, now + duration);
+
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(volume, now + Math.min(attack, duration));
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.02);
+  },
+
+  play(name) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.context) return;
+
+    const presets = {
+      wall: { frequency: 180, duration: 0.04, volume: 0.025, type: "square", sweep: -40 },
+      paddle: { frequency: 240, duration: 0.05, volume: 0.03, type: "triangle", sweep: 55 },
+      brick: { frequency: 420, duration: 0.06, volume: 0.045, type: "square", sweep: 120 },
+      powerup: { frequency: 580, duration: 0.12, volume: 0.055, type: "triangle", sweep: 200 },
+      life: { frequency: 760, duration: 0.1, volume: 0.05, type: "sine", sweep: 120 },
+      start: { frequency: 360, duration: 0.12, volume: 0.05, type: "sawtooth", sweep: 140 },
+      level: { frequency: 520, duration: 0.15, volume: 0.055, type: "triangle", sweep: 170 },
+      miss: { frequency: 130, duration: 0.18, volume: 0.05, type: "square", sweep: -90 },
+      juice: { frequency: 660, duration: 0.1, volume: 0.05, type: "sine", sweep: 150 }
+    };
+
+    const preset = presets[name] || presets.paddle;
+    this.tone(preset);
+  }
+};
 
 const ball = { x: 0, y: 0, width: 12, height: 12, vx: 0, vy: 0 };
 const paddle = {
@@ -147,6 +217,7 @@ function hideScreen() {
 
 function startNewGame() {
   clearSavedRun();
+  sound.play("start");
   GameState.score = 0;
   currentLevel = 1;
   GameState.lives = Math.min(3 + (skins[selectedSkin].startingLives || 0), skins[selectedSkin].maxLives || 5);
@@ -158,6 +229,7 @@ function startNewGame() {
 
 function setSkin(name) {
   if (!isSkinUnlocked(name)) return;
+  sound.play("paddle");
   const oldSpeedFactor = skins[selectedSkin].speedFactor || 1;
   const oldWidth = paddle.width;
   selectedSkin = name;
@@ -252,15 +324,18 @@ function handleJuiceKey() {
     unlockedJuices.push(nextJuice);
     selectedJuice = nextJuice;
     ballTrail = [];
+    sound.play("juice");
     announceJuice(`${juices[nextJuice].name} UNLOCKED`);
     saveProfile();
   } else if (unlockedJuices.length > 1) {
     const currentIndex = unlockedJuices.indexOf(selectedJuice);
     selectedJuice = unlockedJuices[(currentIndex + 1) % unlockedJuices.length];
     ballTrail = [];
+    sound.play("juice");
     announceJuice(`${juices[selectedJuice].name} JUICE`);
     saveProfile();
   } else {
+    sound.play("miss");
     announceJuice(`${Math.max(0, JUICE_MILESTONE - totalBricksBroken)} MORE BLOCKS TO UNLOCK JUICE`);
   }
   updateJuiceStatus();
@@ -280,15 +355,18 @@ function updateJuiceStatus() {
 function applyPowerUp(type) {
   const now = performance.now();
   if (type === "wide") {
+    sound.play("powerup");
     wideUntil = now + POWERUP_DURATION;
     resizePaddle();
   } else if (type === "slow") {
+    sound.play("powerup");
     if (slowUntil <= now) {
       ball.vx *= 0.72;
       ball.vy *= 0.72;
     }
     slowUntil = now + POWERUP_DURATION;
   } else if (type === "life") {
+    sound.play("life");
     GameState.lives = Math.min(GameState.lives + 1, skins[selectedSkin].maxLives || 9);
     updateHud();
   }
@@ -360,6 +438,7 @@ function beginLevel(level) {
 }
 
 function completeLevel() {
+  sound.play("level");
   if (currentLevel >= MAX_LEVELS) {
     clearSavedRun();
     showScreen("won");
@@ -401,6 +480,7 @@ function unlockAll() {
 
   highestLevel = MAX_LEVELS;
   adminUnlocked = true;
+  sound.play("level");
   updateSkinPicker();
   updateAdminControls();
   saveProfile();
@@ -488,6 +568,7 @@ document.addEventListener("keydown", function (event) {
   if (event.key.startsWith("Arrow")) event.preventDefault();
   if (key === "j" && !event.repeat) handleJuiceKey();
   if (key === "escape" || key === "p") {
+    sound.play("wall");
     if (gameState === "playing") showScreen("paused");
     else if (gameState === "paused") hideScreen();
   }
@@ -516,14 +597,19 @@ for (const [id, direction] of [["move-left", "arrowleft"], ["move-right", "arrow
 }
 
 ui.primaryAction.addEventListener("click", () => {
+  sound.play("start");
   if (gameState === "paused") hideScreen();
   else if (gameState === "menu" && savedProgress) resumeSavedGame();
   else startNewGame();
 });
 ui.unlockAll.addEventListener("click", unlockAll);
 ui.menuAction.addEventListener("click", () => {
+  sound.play("start");
   if (gameState === "menu") startNewGame();
   else showScreen("menu");
+});
+ui.soundToggle.addEventListener("click", () => {
+  sound.toggle();
 });
 
 function update() {
@@ -536,10 +622,12 @@ function update() {
 
   if (ball.y > HEIGHT) {
     if (selectedSkin === "admin") {
+      sound.play("miss");
       announceJuice("ADMIN RESET");
       resetBall();
       saveProgress();
     } else {
+      sound.play("miss");
       GameState.lives -= 1;
       updateHud();
       if (GameState.lives <= 0) {
@@ -711,6 +799,7 @@ function frame(now) {
 
 function start() {
   loadProfile();
+  sound.updateToggle();
   updateHud();
   setSkin(selectedSkin);
   ui.skinPerk.textContent = skins[selectedSkin].perk;
