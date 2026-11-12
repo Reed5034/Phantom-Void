@@ -9,6 +9,8 @@ const HEIGHT = canvas.height;
 const MAX_LEVELS = 50;
 const BALL_SPEED = 4;
 const LEGACY_ADMIN_SPEED_MULTIPLIER = 6 * 3;
+const ADMIN_SPEED_MULTIPLIER_MAX = 1000;
+const ADMIN_SPEED_MULTIPLIER_STEP = 100;
 const PADDLE_WIDTH = 92;
 const MAX_PADDLE_SPEED = 12;
 const PADDLE_WIDE_FACTOR = 1.55;
@@ -81,7 +83,7 @@ const skins = {
   prism: { name: "PRISM", ball: "#b2c9ff", paddle: "#7ea1e8", glow: "#b2c9ff", unlockLevel: 25, speedFactor: 0.84, perk: "PERMANENT 16% SLOWER BALL. SLOW DROPS STACK." },
   nova: { name: "NOVA", ball: "#ff9bb4", paddle: "#f26d8d", glow: "#ff9bb4", unlockLevel: 33, startingLives: 2, perk: "PERMANENT +2 STARTING LIVES. LIFE DROPS STACK." },
   zenith: { name: "ZENITH", ball: "#f1f4ff", paddle: "#bbc8d2", glow: "#f1f4ff", unlockLevel: 50, wideFactor: 1.35, scoreFactor: 1.15, perk: "PERMANENT +35% WIDTH AND +15% SCORE. WIDE DROPS STACK." },
-  admin: { name: "ADMIN", ball: "#991010", paddle: "#991010", glow: "#3b3939", unlockLevel: 1, requiresAdmin: true, maxWidth: true, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. S CYCLES BALL SPEED FROM 1X TO 100X. 100 LIVES." }
+  admin: { name: "ADMIN", ball: "#991010", paddle: "#991010", glow: "#3b3939", unlockLevel: 1, requiresAdmin: true, maxWidth: true, paddleSpeed: MAX_PADDLE_SPEED, startingLives: 100, maxLives: 100, perk: "FULL-WIDTH PADDLE. S CYCLES BALL SPEED FROM 1X TO 1000X IN 100X STEPS. 100 LIVES." }
 };
 let selectedSkin = "ion";
 let gameState = "menu";
@@ -111,7 +113,7 @@ function getBallSpeedFactor(skinName = selectedSkin) {
 
 function sanitizeAdminSpeedMultiplier(value) {
   const multiplier = Number(value);
-  return Number.isInteger(multiplier) ? Math.max(1, Math.min(100, multiplier)) : 1;
+  return Number.isInteger(multiplier) ? Math.max(1, Math.min(ADMIN_SPEED_MULTIPLIER_MAX, multiplier)) : 1;
 }
 
 const sound = {
@@ -432,11 +434,11 @@ function cycleAdminBallSpeed() {
   if (selectedSkin !== "admin" || !["menu", "playing", "paused"].includes(gameState)) return;
 
   const previousMultiplier = adminSpeedMultiplier;
-  adminSpeedMultiplier = previousMultiplier >= 100
+  adminSpeedMultiplier = previousMultiplier >= ADMIN_SPEED_MULTIPLIER_MAX
     ? 1
     : previousMultiplier === 1
-      ? 5
-      : Math.min(100, previousMultiplier + 5);
+      ? ADMIN_SPEED_MULTIPLIER_STEP
+      : Math.min(ADMIN_SPEED_MULTIPLIER_MAX, previousMultiplier + ADMIN_SPEED_MULTIPLIER_STEP);
   const speedRatio = adminSpeedMultiplier / previousMultiplier;
   ball.vx *= speedRatio;
   ball.vy *= speedRatio;
