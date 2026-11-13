@@ -354,7 +354,7 @@ function onBrickDestroyed(brick) {
   }
 }
 
-function spawnJuiceEffects(brick) {
+function spawnJuiceEffects(target, { color = target.color, shake = true } = {}) {
   const style = juices[selectedJuice];
   for (let index = 0; index < style.particles; index++) {
     const angle = Math.random() * Math.PI * 2;
@@ -367,8 +367,8 @@ function spawnJuiceEffects(brick) {
           : 1 + Math.random() * 3.2;
     const lifetime = 18 + Math.random() * 20;
     juiceParticles.push({
-      x: brick.x + brick.width / 2,
-      y: brick.y + brick.height / 2,
+      x: target.x + target.width / 2,
+      y: target.y + target.height / 2,
       vx: Math.cos(angle) * speed,
       vy: style.particle === "flame" || style.particle === "bubble"
         ? -Math.random() * speed
@@ -376,14 +376,14 @@ function spawnJuiceEffects(brick) {
       life: lifetime,
       maxLife: lifetime,
       radius: 1.5 + Math.random() * 2.5,
-      color: brick.color,
+      color,
       shape: style.particle
     });
   }
   if (style.wave) {
-    juiceWaves.push({ x: brick.x + brick.width / 2, y: brick.y + brick.height / 2, radius: 3, life: 22, color: brick.color });
+    juiceWaves.push({ x: target.x + target.width / 2, y: target.y + target.height / 2, radius: 3, life: 22, color });
   }
-  screenShake = Math.max(screenShake, style.shake);
+  if (shake) screenShake = Math.max(screenShake, style.shake);
 }
 
 function updateJuiceEffects() {

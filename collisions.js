@@ -44,6 +44,7 @@ function bounceOffWalls() {
 function bounceOffPaddle() {
   if (boxesTouch(ball, paddle) && ball.vy > 0) {
     ball.y = paddle.y - ball.height;  // sit on top of the paddle
+    spawnJuiceEffects(ball, { color: skins[selectedSkin].glow, shake: false });
     sound.play("paddle");
     if (selectedSkin === "admin") {
       const target = bricks.reduce((nearest, brick) => {
