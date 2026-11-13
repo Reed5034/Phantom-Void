@@ -457,6 +457,115 @@ canvas {
   color: #9aafaa;
   cursor: pointer;
   font: 600 9px "Orbitron", sans-serif;
+  text-align: center;
+  text-decoration: none;
+}
+
+.guide-layout {
+  max-width: 820px;
+}
+
+.guide-back {
+  color: var(--cyan);
+  font: 700 9px "Orbitron", sans-serif;
+  text-decoration: none;
+}
+
+.guide-back:hover {
+  color: var(--text);
+}
+
+.guide-panel {
+  padding: clamp(20px, 5vw, 38px);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--cyan);
+  background: rgba(12, 26, 32, 0.92);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.26);
+}
+
+.guide-panel h2 {
+  margin: 0;
+  font: 700 clamp(25px, 5vw, 38px)/1.12 "Orbitron", sans-serif;
+}
+
+.guide-intro,
+.guide-section p,
+.guide-list {
+  color: #a8bbb6;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.guide-intro {
+  margin: 9px 0 26px;
+}
+
+.guide-section {
+  margin-top: 24px;
+}
+
+.guide-section h3 {
+  margin: 0 0 10px;
+  color: var(--cyan);
+  font: 700 12px "Orbitron", sans-serif;
+}
+
+.guide-section p {
+  margin: 10px 0;
+}
+
+.guide-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.guide-list li + li {
+  margin-top: 4px;
+}
+
+.guide-list strong,
+.guide-section strong {
+  color: var(--text);
+}
+
+.juice-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.juice-guide-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.juice-guide-item strong {
+  color: var(--lime);
+  font: 700 9px "Orbitron", sans-serif;
+}
+
+.juice-guide-item span {
+  color: #a8bbb6;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.admin-guide code {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 107, 229, 0.42);
+  background: rgba(255, 107, 229, 0.06);
+  color: #ff9beb;
+  font: 700 16px "Orbitron", sans-serif;
+}
+
+.guide-bottom-link {
+  display: inline-block;
+  margin-top: 20px;
 }
 
 .controls-row {
@@ -567,6 +676,9 @@ footer {
   .powerup-hint { display: none; }
   .touch-controls { display: flex; }
   footer { font-size: 7px; }
+  .juice-guide-grid { grid-template-columns: 1fr; }
+  .guide-layout .topbar { align-items: flex-start; }
+  .guide-back { font-size: 8px; }
 }
 
 @media (max-width: 400px) {
